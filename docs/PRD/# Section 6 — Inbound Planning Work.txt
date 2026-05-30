@@ -1,0 +1,432 @@
+# Section 6 — Inbound Planning Workflow
+
+## Purpose
+
+The Inbound Planning Workflow is responsible for managing:
+
+* Trailer unloading
+* Dock door assignments
+* Put Away operations
+* Middle Mile operations
+* Support Outbound operations
+* Housekeeping assignments
+* Training assignments
+* Labor movement throughout the day
+
+Unlike Outbound, which is primarily task-based, Inbound is operational-task driven and heavily influenced by dock door activity.
+
+---
+
+# Inbound Planning Philosophy
+
+The system should not ask leaders to build plans from scratch every day.
+
+The application already knows:
+
+* Inbound associates
+* Shift Key
+* Available equipment
+* Dock door list
+* Historical assignments
+* Templates
+
+The leader should only provide daily exceptions.
+
+---
+
+# Step 1 — Login
+
+Leader logs into ShiftFlow.
+
+Example:
+
+John
+Inbound Leader
+
+The system verifies:
+
+* Authentication
+* Role
+* Department permissions
+
+---
+
+# Step 2 — Select Key
+
+Leader selects:
+
+* Key 1
+* Key 2
+* Key 3
+
+The system loads:
+
+* Inbound associates
+* Dock doors
+* Templates
+* Rotation history
+* Equipment
+* Historical planning data
+
+for the selected key.
+
+---
+
+# Step 3 — Morning Setup Wizard
+
+Inbound only asks for exceptions.
+
+---
+
+## Call-Offs
+
+Question:
+
+Any call-offs today?
+
+Leader selects associates.
+
+Call-off associates are removed from planning calculations.
+
+---
+
+## Overtime
+
+Question:
+
+Any overtime support today?
+
+If yes:
+
+Leader selects associates and their assignments.
+
+Example:
+
+Maria
+Task: Put Away
+Equipment: Pacer
+
+---
+
+## Middle Mile Ownership
+
+Question:
+
+Will Inbound handle Middle Mile today?
+
+Options:
+
+* Yes
+* No
+
+If Yes:
+
+Leader assigns associates.
+
+If No:
+
+Inbound board displays:
+
+Handled by Outbound
+
+---
+
+## Support Outbound
+
+Question:
+
+Will Inbound support Outbound today?
+
+If Yes:
+
+Leader assigns associates.
+
+Support associates become unavailable for normal inbound assignments.
+
+---
+
+## Training
+
+Question:
+
+Any training assignments today?
+
+If Yes:
+
+Leader creates:
+
+* Trainer
+* New Hire
+* Task
+* Equipment
+
+Training pairs are treated as active assignments.
+
+---
+
+# Step 4 — Dock Door Selection
+
+The dock door list is configurable.
+
+Examples:
+
+* Door 635
+* Door 622
+* Door 618
+* Door 640
+
+The system loads all available doors.
+
+The leader selects which doors are active today.
+
+Example:
+
+Active Doors:
+
+* 635
+* 622
+* 618
+
+Only active doors participate in plan generation.
+
+---
+
+# Step 5 — Auto-Generate Plan
+
+The system generates assignments using:
+
+* Available associates
+* Key
+* Active dock doors
+* Equipment certifications
+* Planned assignment history
+* Fair rotation rules
+* Overtime
+* Training
+* Support assignments
+* Call-offs
+
+---
+
+# Step 6 — Review Generated Plan
+
+The generated plan should display operational assignments.
+
+Examples:
+
+Door 635
+John
+Unload
+Clamp
+
+Door 622
+Maria
+Unload
+Pacer
+
+Put Away
+Carlos
+
+Middle Mile
+Alex
+
+Support Outbound
+Ana
+
+Each assignment card includes:
+
+* Edit
+* Switch
+* Remove
+
+---
+
+# Step 7 — Switch Feature
+
+The leader may switch associates.
+
+Example:
+
+John
+Unload Door 635
+
+Maria
+Put Away
+
+Leader selects:
+
+Switch
+
+Result:
+
+John → Put Away
+
+Maria → Unload Door 635
+
+System validates:
+
+* Certifications
+* Rotation rules
+* Equipment requirements
+
+before applying the switch.
+
+---
+
+# Step 8 — Publish Plan
+
+Leader publishes the plan.
+
+The plan becomes visible in:
+
+* Dashboard
+* TV Mode
+* Presentation Mode
+
+Published plans become the official Planned Assignment History.
+
+---
+
+# Step 9 — Live Operations
+
+Inbound operations change frequently.
+
+The system must support real-time labor movement.
+
+Examples:
+
+* Trailer finishes
+* New trailer arrives
+* Labor support needed
+* Housekeeping starts
+* Outbound needs support
+
+Leaders must be able to:
+
+* Move associates
+* Switch associates
+* Reassign associates
+* Create new assignments
+
+without rebuilding the plan.
+
+---
+
+# Available Pool
+
+A dedicated Available Pool must exist.
+
+Available Pool contains:
+
+Associates who:
+
+* Are present
+* Are not assigned
+* Are not on break
+* Are not on lunch
+* Are not inactive
+
+The leader can quickly assign available associates.
+
+Example:
+
+Available:
+
+* John
+* Carlos
+* Maria
+
+Assign To:
+
+* Door 640
+* Put Away
+* Middle Mile
+* Support Outbound
+* Housekeeping
+
+---
+
+# Trailer Completion Flow
+
+When a trailer finishes:
+
+Leader selects:
+
+Complete
+
+The associate automatically moves to:
+
+Available Pool
+
+Example:
+
+Door 635 completed
+
+John becomes Available
+
+Leader can immediately assign John to:
+
+* Another Door
+* Put Away
+* Middle Mile
+* Support Outbound
+* Housekeeping
+
+---
+
+# Activity Tracking
+
+All labor movement throughout the day must be stored.
+
+Example:
+
+John
+
+08:00 AM
+Unload Door 635
+
+10:30 AM
+Put Away
+
+01:00 PM
+Middle Mile
+
+03:30 PM
+Support Outbound
+
+This data becomes part of Activity History.
+
+---
+
+# Shift Close
+
+At the end of the shift:
+
+Leader closes the plan.
+
+The system stores:
+
+* Planned Assignment History
+* Activity History
+* Assignment timeline
+* Overtime records
+* Training records
+* Support records
+* Middle Mile records
+
+The shift becomes available for reporting and future fairness calculations.
+
+---
+
+# Operational Principle
+
+Inbound planning must prioritize:
+
+* Speed
+* Flexibility
+* Reassignment capability
+* Visibility
+* Dock door awareness
+* Real-time updates
+
+The leader should never need to rebuild the entire plan because a trailer finished or labor needs changed.

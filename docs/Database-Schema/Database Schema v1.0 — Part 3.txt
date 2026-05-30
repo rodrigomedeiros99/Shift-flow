@@ -1,0 +1,150 @@
+Database Schema v1.0 — Part 3
+
+Templates, Roles, Audit Logs
+plan_templates
+
+Stores reusable templates.
+
+plan_templates
+Column	Type
+id	uuid
+facility_id	uuid
+department_id	uuid
+shift_key_id	uuid
+name	text
+active	boolean
+created_by	uuid
+created_at	timestamptz
+
+Examples:
+
+Key 1 Outbound Template
+Key 2 Inbound Template
+Weekend Key 3 Template
+template_items
+
+Stores tasks/doors inside a template.
+
+template_items
+Column	Type
+id	uuid
+template_id	uuid
+task_type_id	uuid
+dock_door_id	uuid
+default_equipment_id	uuid
+people_needed	integer
+sort_order	integer
+notes	text
+
+Example:
+
+CL — Clamp — 3 people
+FLR — Pacer — 2 people
+Zone 1 Loader — Pacer — 1 person
+
+For inbound:
+
+Door 635 — Clamp — 1 person
+Door 622 — Pacer — 1 person
+Put Away — Pacer — 2 people
+profiles
+
+Connects Supabase Auth users to app roles.
+
+profiles
+Column	Type
+id	uuid
+full_name	text
+email	text
+role	text
+facility_id	uuid
+department_id	uuid
+active	boolean
+created_at	timestamptz
+
+Roles:
+
+admin
+supervisor
+inbound_leader
+outbound_leader
+viewer
+audit_logs
+
+Tracks important actions.
+
+audit_logs
+Column	Type
+id	uuid
+facility_id	uuid
+user_id	uuid
+daily_plan_id	uuid
+action_type	text
+entity_type	text
+entity_id	uuid
+old_value	jsonb
+new_value	jsonb
+created_at	timestamptz
+
+Examples:
+
+created_plan
+published_plan
+switched_assignment
+moved_associate
+added_call_off
+added_overtime
+edited_task_type
+rotation_rules
+
+Stores configurable fairness rules.
+
+rotation_rules
+Column	Type
+id	uuid
+facility_id	uuid
+department_id	uuid
+shift_key_id	uuid
+task_type_id	uuid
+lookback_days	integer
+warning_threshold	integer
+active	boolean
+created_at	timestamptz
+
+Example:
+
+Task: CL
+Lookback: 4 days
+Warning threshold: 2
+
+Meaning:
+
+If John was planned for CL 2+ times in the last 4 planned shifts,
+show a rotation notice.
+Important indexes
+
+Add indexes for performance:
+
+daily_plans(facility_id, department_id, shift_key_id, plan_date)
+assignments(daily_plan_id)
+assignments(associate_id)
+planned_assignment_history(associate_id, department_id, shift_key_id, plan_date)
+activity_history(associate_id, changed_at)
+task_types(department_id, active)
+dock_doors(facility_id, active)
+audit_logs(user_id, created_at)
+Unique constraint
+
+Only one active/published plan per:
+
+facility + department + shift_key + plan_date
+
+This prevents duplicate plans.
+
+RLS high-level rules
+Admin can access everything in their facility.
+Supervisor can view/edit operational plans in their facility.
+Inbound Leader can create/edit inbound plans only.
+Outbound Leader can create/edit outbound plans only.
+Viewer can only read published plans and TV mode data.
+No user can access another facility unless authorized.

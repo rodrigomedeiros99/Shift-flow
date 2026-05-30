@@ -1,0 +1,359 @@
+# Section 9 — History, Reporting & Analytics
+
+## Purpose
+
+ShiftFlow shall maintain complete historical records of planning decisions and operational activities.
+
+The History system serves three primary purposes:
+
+1. Fair Rotation Recommendations
+2. Operational Visibility
+3. Reporting & Analytics
+
+The system shall preserve historical records while allowing leaders to quickly search and analyze workforce assignments.
+
+---
+
+# History Types
+
+ShiftFlow shall maintain two separate history systems:
+
+## Planned Assignment History
+
+Represents the original labor plan created and published by leadership.
+
+Examples:
+
+Monday
+
+John → CL
+
+Maria → FLR
+
+Carlos → Zone 1 Loader
+
+This history represents leadership intent.
+
+---
+
+## Activity History
+
+Represents actual labor movement throughout the shift.
+
+Example:
+
+John
+
+08:00 AM → CL
+
+11:30 AM → Zone 1 Loader
+
+02:00 PM → Housekeeping
+
+04:00 PM → Support ICQA
+
+This history represents operational reality.
+
+---
+
+# Associate History View
+
+Leaders must be able to select any associate.
+
+Example:
+
+Select Associate:
+
+John
+
+The system displays:
+
+* Planned Assignment History
+* Activity History
+* Timeline View
+* Assignment Frequency
+* Equipment Usage
+* Department History
+
+---
+
+# Planned Assignment View
+
+Example:
+
+John
+
+Monday → CL
+
+Tuesday → Loader
+
+Wednesday → FLR
+
+Thursday → Tile Overbox
+
+This view is primarily used by:
+
+* Fair Rotation Recommendations
+* Auto-Plan Generation
+* Workforce balancing
+
+---
+
+# Activity Timeline View
+
+Example:
+
+John
+
+08:00 AM → CL
+
+11:30 AM → Loader
+
+02:00 PM → Housekeeping
+
+04:00 PM → ICQA Support
+
+This view is primarily used for:
+
+* Audits
+* Labor tracking
+* Operational analysis
+
+---
+
+# Department Filters
+
+History must be separated by department.
+
+Options:
+
+* Inbound
+* Outbound
+
+Example:
+
+Outbound History
+
+Only outbound associates and assignments appear.
+
+Inbound History
+
+Only inbound associates and assignments appear.
+
+---
+
+# Key Filters
+
+History must be separated by shift key.
+
+Options:
+
+* Key 1
+* Key 2
+* Key 3
+
+Example:
+
+John
+
+Outbound
+
+Key 1
+
+Monday → CL
+
+Tuesday → Loader
+
+Wednesday → FLR
+
+---
+
+# Date Range Filters
+
+Supported filters:
+
+* Today
+* Yesterday
+* Last 7 Days
+* Last 30 Days
+* Custom Range
+
+---
+
+# Task Filters
+
+Examples:
+
+Outbound
+
+* CL
+* FLR
+* OBL
+* PA/TL
+* Tile Overbox
+* Oblong Overbox
+* Zone Loaders
+
+Inbound
+
+* Unload
+* Put Away
+* Middle Mile
+* Support Outbound
+* Housekeeping
+
+---
+
+# Equipment Filters
+
+Examples:
+
+* Clamp
+* Pacer
+* EPJ
+* Forklift
+* Electric Pallet Jack
+
+Leaders should be able to see which associates operated specific equipment.
+
+---
+
+# Assignment Frequency Analysis
+
+The system shall calculate:
+
+How often an associate performed a specific task.
+
+Example:
+
+John
+
+Last 30 Days
+
+CL → 10
+
+FLR → 5
+
+Loader → 7
+
+Tile Overbox → 3
+
+This data supports rotation recommendations.
+
+---
+
+# Team Distribution Analysis
+
+Leaders should be able to view task distribution across the team.
+
+Example:
+
+CL
+
+John → 10
+
+Maria → 8
+
+Carlos → 9
+
+This helps identify assignment imbalances.
+
+---
+
+# Rotation Analytics
+
+The system should display:
+
+Rotation Score
+
+Examples:
+
+Excellent
+
+Good
+
+Needs Improvement
+
+The score is informational only.
+
+Leadership remains responsible for final assignment decisions.
+
+---
+
+# Overtime Reporting
+
+The system shall track:
+
+* Overtime assignments
+* Overtime frequency
+* Overtime hours
+* Overtime department support
+
+---
+
+# Training Reporting
+
+The system shall track:
+
+* Trainers
+* New Hires
+* Training assignments
+* Training frequency
+
+---
+
+# Middle Mile Reporting
+
+The system shall track:
+
+* Department ownership
+* Assigned associates
+* Assignment frequency
+
+---
+
+# ICQA Support Reporting
+
+The system shall track:
+
+* Support assignments
+* Frequency
+* Department contribution
+
+---
+
+# Housekeeping Reporting
+
+The system shall track:
+
+* Housekeeping assignments
+* Areas cleaned
+* Frequency
+
+---
+
+# Export Capabilities
+
+Future versions should support:
+
+* PDF Export
+* Excel Export
+* CSV Export
+
+This feature is not required for MVP but should be supported by the architecture.
+
+---
+
+# Analytics Philosophy
+
+Analytics exist to provide visibility.
+
+The purpose is to:
+
+* Improve planning
+* Improve fairness
+* Improve decision-making
+
+Analytics should never replace leadership judgment.
+
+Leadership remains responsible for operational decisions.

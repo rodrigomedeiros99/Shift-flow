@@ -1,0 +1,353 @@
+# Section 10 — Configuration Management
+
+## Purpose
+
+ShiftFlow must be highly configurable.
+
+Warehouse operations evolve over time.
+
+New:
+
+* Tasks
+* Equipment
+* Dock Doors
+* Templates
+* Departments
+
+may be introduced without requiring code changes.
+
+The system shall allow authorized users to manage operational data through administrative interfaces.
+
+---
+
+# Configuration Philosophy
+
+Business rules should be driven by data whenever possible.
+
+The application should avoid hardcoded operational values.
+
+Examples:
+
+Bad:
+
+Task CL hardcoded in source code.
+
+Good:
+
+Task CL stored in database and managed through the application.
+
+---
+
+# Associate Management
+
+Associates are managed through the Associates module.
+
+Authorized users can:
+
+* Create associates
+* Edit associates
+* Activate associates
+* Deactivate associates
+* Assign departments
+* Assign default keys
+* Assign certifications
+
+Associates should never be permanently deleted if historical records exist.
+
+Use:
+
+Active
+
+Inactive
+
+status instead.
+
+---
+
+# Associate Fields
+
+Examples:
+
+* Name
+* Employee ID (optional)
+* Department
+* Default Key
+* Certifications
+* Status
+* Notes
+
+---
+
+# Task Management
+
+Tasks must be configurable.
+
+Examples:
+
+Outbound
+
+* CL
+* FLR
+* OBL
+* PA/TL
+* Tile Overbox
+* Oblong Overbox
+* Zone 1 Loader
+* Zone 2 Loader
+* Zone 3 Loader
+* All Zone Pacer Loader
+
+Inbound
+
+* Unload
+* Put Away
+* Middle Mile
+* Support Outbound
+* Housekeeping
+
+---
+
+# Add New Tasks
+
+Authorized users may create new tasks.
+
+Example:
+
+TT
+
+The task immediately becomes available in:
+
+* Templates
+* Planning
+* Reporting
+* History
+* Analytics
+
+without code changes.
+
+---
+
+# Task Configuration
+
+Each task should support:
+
+* Name
+* Department
+* Default Equipment
+* Active Status
+* Sort Order
+* Description (optional)
+
+---
+
+# Equipment Management
+
+Equipment must be configurable.
+
+Examples:
+
+* Clamp
+* Pacer
+* EPJ
+* Forklift
+* Reach Truck
+* Order Picker
+* Electric Pallet Jack
+
+---
+
+# Add New Equipment
+
+Authorized users may create new equipment.
+
+The new equipment should immediately become available throughout the platform.
+
+No code deployment should be required.
+
+---
+
+# Equipment Configuration
+
+Each equipment type should support:
+
+* Name
+* Active Status
+* Description
+* Certification Required
+
+---
+
+# Certification Management
+
+Associates may be certified for:
+
+* Clamp
+* Pacer
+* EPJ
+* Forklift
+* Future Equipment
+
+The system shall use certifications during:
+
+* Auto-plan generation
+* Assignment validation
+* Switch validation
+
+---
+
+# Dock Door Management
+
+Dock doors must be configurable.
+
+Examples:
+
+* 635
+* 622
+* 618
+* 640
+
+The system must not hardcode dock doors.
+
+---
+
+# Dock Door Configuration
+
+Each dock door supports:
+
+* Door Number
+* Active Status
+* Notes
+
+---
+
+# Template Management
+
+Templates reduce daily planning effort.
+
+The system shall support:
+
+* Create Template
+* Edit Template
+* Duplicate Template
+* Archive Template
+
+---
+
+# Template Types
+
+Examples:
+
+Outbound
+
+* Key 1 Outbound Template
+* Key 2 Outbound Template
+* Key 3 Outbound Template
+
+Inbound
+
+* Key 1 Inbound Template
+* Key 2 Inbound Template
+* Key 3 Inbound Template
+
+---
+
+# Department Management
+
+Departments must be configurable.
+
+Default Departments:
+
+* Inbound
+* Outbound
+* ICQA
+* Transportation
+* Support
+
+Future departments may be added without code changes.
+
+---
+
+# Shift Key Configuration
+
+Shift Keys should be configurable by administrators.
+
+Default:
+
+Key 1
+
+Monday–Thursday
+
+8:00 AM–6:30 PM
+
+---
+
+Key 2
+
+Monday–Thursday
+
+7:30 PM–5:30 AM
+
+---
+
+Key 3
+
+Friday–Sunday
+
+8:00 AM–8:30 PM
+
+---
+
+Future shift structures should be supported.
+
+---
+
+# Active vs Inactive Records
+
+The system should prefer:
+
+Active
+
+Inactive
+
+instead of deletion.
+
+Examples:
+
+Inactive Associate
+
+Inactive Task
+
+Inactive Equipment
+
+Inactive Dock Door
+
+Inactive Template
+
+This preserves historical integrity.
+
+---
+
+# Import Capabilities
+
+Future versions should support:
+
+* CSV Import
+* Excel Import
+
+Examples:
+
+Associate imports
+
+Task imports
+
+Equipment imports
+
+This feature is optional for MVP but should be considered in the architecture.
+
+---
+
+# Administrative Philosophy
+
+The goal of configuration management is to ensure operational changes can be handled by leadership without requiring software development work.
+
+Most day-to-day operational changes should be manageable through administrative screens rather than code modifications.

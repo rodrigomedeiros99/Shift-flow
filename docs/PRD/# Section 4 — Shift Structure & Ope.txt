@@ -1,0 +1,358 @@
+# Section 4 — Shift Structure & Operational Model
+
+## Overview
+
+ShiftFlow is designed around Home Depot DFC shift structures.
+
+All planning, history, reporting, templates, fairness calculations, and assignment tracking must be associated with a specific shift key.
+
+The shift key is a core business concept and must never be treated as a simple text field.
+
+Every plan belongs to:
+
+* Department
+* Shift Key
+* Date
+
+Example:
+
+Outbound + Key 1 + May 29, 2026
+
+Inbound + Key 2 + May 29, 2026
+
+These are separate plans.
+
+---
+
+# Shift Keys
+
+## Key 1
+
+Schedule:
+
+Monday–Thursday
+
+8:00 AM – 6:30 PM
+
+Purpose:
+
+Day shift operations.
+
+---
+
+## Key 2
+
+Schedule:
+
+Monday–Thursday
+
+7:30 PM – 5:30 AM
+
+Purpose:
+
+Night shift operations.
+
+---
+
+## Key 3
+
+Schedule:
+
+Friday–Sunday
+
+8:00 AM – 8:30 PM
+
+Purpose:
+
+Weekend operations.
+
+---
+
+# Key Selection
+
+Before creating a plan, the leader must select:
+
+1. Department
+2. Key
+
+Example:
+
+Department:
+Outbound
+
+Key:
+Key 1
+
+The application then loads:
+
+* Key 1 associates
+* Key 1 templates
+* Key 1 history
+* Key 1 rotation data
+
+---
+
+# Associate Key Assignment
+
+Every associate must have a default key assignment.
+
+Example:
+
+John
+Department: Outbound
+Default Key: Key 1
+
+Maria
+Department: Inbound
+Default Key: Key 2
+
+Alex
+Department: Outbound
+Default Key: Key 3
+
+---
+
+# Overtime Logic
+
+Associates may work outside their normal key.
+
+Example:
+
+Maria
+Default Key: Key 2
+
+Works overtime on:
+
+Key 1
+
+The system must support:
+
+* Overtime assignment
+* Temporary inclusion in another key plan
+* History tracking
+* Fairness tracking
+
+The associate's default key must remain unchanged.
+
+---
+
+# Planning Model
+
+The application supports two independent planning models:
+
+## Outbound Planning Model
+
+Task-based planning.
+
+Examples:
+
+* CL
+* FLR
+* OBL
+* PA/TL
+* Tile Overbox
+* Oblong Overbox
+* Zone 1 Loader
+* Zone 2 Loader
+* Zone 3 Loader
+* All Zone Pacer Loader
+* Housekeeping
+
+The system generates assignments based on:
+
+* Available associates
+* Certifications
+* Templates
+* Fairness rules
+* Overtime
+* Special assignments
+
+---
+
+## Inbound Planning Model
+
+Operational task planning.
+
+Primary inbound tasks:
+
+* Unload
+* Put Away
+* Middle Mile
+* Support Outbound
+* Housekeeping
+
+Inbound planning must also support dock-door operations.
+
+The system should load a configurable dock door list and allow leaders to activate only the doors needed for the current shift.
+
+---
+
+# Active Dock Doors
+
+The dock door list is configurable.
+
+Example:
+
+* Door 635
+* Door 622
+* Door 618
+* Door 640
+
+The system must not hardcode dock doors.
+
+Leaders select which doors are active for the day.
+
+Example:
+
+Active today:
+
+* 635
+* 622
+* 618
+
+The auto-plan engine only considers active doors.
+
+---
+
+# Special Operational Assignments
+
+The planning engine must support:
+
+## Overtime
+
+Associate temporarily working another key.
+
+---
+
+## Middle Mile
+
+Can be owned by:
+
+* Inbound
+* Outbound
+
+When one department owns Middle Mile, the other department should display:
+
+Handled by Inbound
+
+or
+
+Handled by Outbound
+
+---
+
+## ICQA Support
+
+Outbound may provide support to ICQA.
+
+These associates are considered assigned and should not be automatically assigned elsewhere.
+
+---
+
+## Training
+
+The system supports:
+
+Trainer + New Hire pairs.
+
+Example:
+
+Trainer:
+John
+
+New Hire:
+Mike
+
+Task:
+FLR
+
+Equipment:
+Pacer
+
+Training pairs are treated as active assignments.
+
+---
+
+## Housekeeping
+
+Housekeeping can occur at any time.
+
+Examples:
+
+* Aisle 304
+* Aisle 408
+* Pallet Cleanup
+* Trash Run
+* Dock Sweep
+
+Housekeeping tasks must be configurable.
+
+---
+
+# Assignment Lifecycle
+
+An associate may move through multiple assignments during a shift.
+
+Example:
+
+8:00 AM
+Unload
+
+10:30 AM
+Put Away
+
+1:00 PM
+Support Outbound
+
+4:00 PM
+Housekeeping
+
+All assignment changes must be recorded in history.
+
+---
+
+# Assignment Statuses
+
+Supported statuses:
+
+* Assigned
+* Active
+* Available
+* Break
+* Lunch
+* Training
+* Overtime
+* Completed
+
+These statuses should be visible on dashboards and TV displays.
+
+---
+
+# Available Pool
+
+Every plan must maintain an Available Pool.
+
+The Available Pool contains associates who:
+
+* Are present
+* Are not currently assigned
+* Are not on break
+* Are not on lunch
+* Are not inactive
+
+Leaders can quickly assign available associates to new tasks.
+
+---
+
+# Operational Philosophy
+
+ShiftFlow should prioritize:
+
+* Fast planning
+* Operational flexibility
+* Fairness
+* Visibility
+* Reassignment speed
+* Real-time updates
+
+The platform must support rapid changes without requiring leaders to rebuild plans from scratch.

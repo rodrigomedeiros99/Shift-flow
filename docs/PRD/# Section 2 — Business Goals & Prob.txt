@@ -1,0 +1,319 @@
+# Section 2 — Business Goals & Problems Being Solved
+
+## Current State
+
+Warehouse labor planning is currently performed using a combination of:
+
+* Excel spreadsheets
+* Screenshots displayed on TVs
+* Whiteboards
+* Verbal communication
+* Manual reassignment throughout the day
+
+While these methods work, they create operational inefficiencies, lack historical visibility, and require significant manual effort from leaders.
+
+ShiftFlow exists to modernize and simplify these processes.
+
+---
+
+# Problem 1 — Daily Planning Takes Too Long
+
+## Current Process
+
+Every morning leaders manually:
+
+* Build labor plans
+* Assign associates
+* Consider overtime
+* Consider call-offs
+* Consider training
+* Consider support assignments
+* Consider equipment availability
+* Update spreadsheets
+
+The process is repetitive and time-consuming.
+
+## Goal
+
+Allow leaders to generate a daily plan within minutes using:
+
+* Templates
+* Auto-plan generation
+* Fair rotation logic
+* Associate history
+* Equipment validation
+
+---
+
+# Problem 2 — Plans Become Outdated Immediately
+
+## Current Process
+
+A leader creates an Excel sheet.
+
+A screenshot is placed on a TV.
+
+Throughout the day:
+
+* People move
+* Tasks change
+* Support assignments happen
+* Trailers finish
+* Housekeeping starts
+
+The TV no longer reflects reality.
+
+## Goal
+
+Provide a live labor board that updates in real time.
+
+All changes should instantly appear on:
+
+* Dashboard
+* TV mode
+* Presentation mode
+
+---
+
+# Problem 3 — Whiteboard Dependency
+
+## Current Process
+
+Leaders often maintain a physical whiteboard showing:
+
+* Associate names
+* Current assignments
+* Reassignments
+
+This information exists only on the board and is lost later.
+
+## Goal
+
+Replace the whiteboard with a digital operational board.
+
+Provide:
+
+* Live updates
+* Searchability
+* History
+* Reporting
+
+---
+
+# Problem 4 — Assignment Fairness
+
+## Current Process
+
+Leaders attempt to rotate associates fairly.
+
+However:
+
+* Previous assignments are difficult to track
+* Leaders may unintentionally repeat assignments
+* Associates may perform the same tasks repeatedly
+
+## Goal
+
+Create a Fair Rotation Engine.
+
+The system should:
+
+* Track assignment history
+* Warn leaders when assignments repeat too often
+* Suggest fair alternatives
+* Support automatic fair planning
+
+Example:
+
+"John picked CL yesterday. Are you sure you want to assign him to CL again today?"
+
+---
+
+# Problem 5 — Lack of Historical Visibility
+
+## Current Process
+
+There is no easy way to answer:
+
+* What did John do last week?
+* How often has Maria unloaded trailers?
+* Who handled Middle Mile recently?
+* Who has been assigned to FLR repeatedly?
+
+## Goal
+
+Maintain complete assignment history.
+
+Allow leaders to filter by:
+
+* Associate
+* Department
+* Key
+* Date range
+* Task
+* Equipment
+* Area
+* Dock door
+
+---
+
+# Problem 6 — Overtime Planning
+
+## Current Process
+
+Leaders manually remember:
+
+* Who is staying over
+* What task they will perform
+* Which department they support
+
+## Goal
+
+Support overtime planning during morning setup.
+
+Allow leaders to:
+
+* Add overtime associates
+* Assign tasks
+* Assign equipment
+* Include overtime in auto-plan generation
+
+---
+
+# Problem 7 — Call-Off Management
+
+## Current Process
+
+Call-offs require manual adjustments.
+
+Leaders must rebuild portions of the plan.
+
+## Goal
+
+Allow quick call-off entry.
+
+The system should automatically:
+
+* Remove unavailable associates
+* Recalculate assignments
+* Suggest replacements
+
+---
+
+# Problem 8 — Inbound and Outbound Planning Differences
+
+## Current Process
+
+Inbound and Outbound have fundamentally different workflows.
+
+Inbound:
+
+* Dock door focused
+* Trailer unloading
+* Put Away
+* Middle Mile
+* Support Outbound
+
+Outbound:
+
+* Picking
+* Loading
+* Zone assignments
+* Overbox operations
+
+## Goal
+
+Provide separate planning experiences optimized for each department.
+
+Inbound should be door-driven.
+
+Outbound should be task/area-driven.
+
+---
+
+# Problem 9 — Training Visibility
+
+## Current Process
+
+Training assignments are often tracked separately.
+
+Leaders must remember:
+
+* Trainer
+* New hire
+* Assigned area
+* Equipment
+
+## Goal
+
+Support training assignments directly inside ShiftFlow.
+
+The system should treat training pairs as operational assignments.
+
+---
+
+# Problem 10 — TV Meeting Visibility
+
+## Current Process
+
+Morning meetings require leaders to explain plans using spreadsheets and screenshots.
+
+Inbound and Outbound leaders speak separately.
+
+## Goal
+
+Provide a Presentation Mode.
+
+Support:
+
+* Outbound view
+* Inbound view
+* Full view
+* Live TV updates
+
+Leaders should be able to toggle presentations during meetings.
+
+---
+
+# Problem 11 — Operational Flexibility
+
+Warehouse operations change constantly.
+
+Examples:
+
+* Trailer finishes early
+* Labor needs shift
+* Housekeeping begins
+* ICQA needs support
+* Outbound needs support
+* Middle Mile changes ownership
+
+## Goal
+
+Provide rapid reassignment capabilities.
+
+Support:
+
+* Move
+* Switch
+* Edit
+* Remove
+* Reassign
+
+without rebuilding the entire plan.
+
+---
+
+# Business Goal Summary
+
+ShiftFlow will:
+
+* Reduce planning time
+* Increase visibility
+* Improve fairness
+* Improve communication
+* Reduce manual effort
+* Improve historical tracking
+* Improve labor allocation decisions
+* Replace spreadsheets and whiteboards
+* Create a scalable warehouse planning platform

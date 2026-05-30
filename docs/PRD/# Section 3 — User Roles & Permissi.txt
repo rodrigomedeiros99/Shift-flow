@@ -1,0 +1,310 @@
+# Section 3 — User Roles & Permissions
+
+## Overview
+
+ShiftFlow uses Role-Based Access Control (RBAC).
+
+Every user must belong to one of the following roles:
+
+* Admin
+* Supervisor
+* Inbound Leader
+* Outbound Leader
+* Viewer (TV Mode)
+
+Permissions must be enforced at:
+
+* UI level
+* API level
+* Database level (Supabase RLS)
+
+The UI should only display features available to the user's role.
+
+---
+
+# Role: Admin
+
+## Purpose
+
+Administrators manage the entire platform.
+
+They have unrestricted access to all departments, keys, settings, templates, and operational data.
+
+## Permissions
+
+Can:
+
+* View all plans
+* Create plans
+* Edit plans
+* Delete plans
+* Publish plans
+* View all history
+* View all departments
+* View all keys
+* Manage users
+* Manage permissions
+* Manage associates
+* Manage tasks
+* Manage equipment
+* Manage dock doors
+* Manage templates
+* Manage settings
+* View audit logs
+* View analytics
+* Create plan versions
+* Override fairness warnings
+
+---
+
+# Role: Supervisor
+
+## Purpose
+
+Operational supervisors oversee multiple departments.
+
+They can assist leaders and review operational planning.
+
+## Permissions
+
+Can:
+
+* View inbound plans
+* View outbound plans
+* Create plans
+* Edit plans
+* Publish plans
+* View history
+* View reports
+* View analytics
+* Manage assignments
+* Use switch feature
+* Manage call-offs
+* Manage overtime
+* Manage housekeeping assignments
+
+Cannot:
+
+* Manage users
+* Change permissions
+* Delete historical records
+
+---
+
+# Role: Inbound Leader
+
+## Purpose
+
+Creates and manages inbound labor plans.
+
+## Permissions
+
+Can:
+
+* Create inbound plans
+* Edit inbound plans
+* Publish inbound plans
+* Manage inbound assignments
+* Manage inbound dock doors
+* Manage inbound overtime
+* Manage inbound training assignments
+* Manage inbound Middle Mile assignments
+* Manage inbound support outbound assignments
+* View inbound history
+* Use switch feature
+* Use reassignment feature
+
+Cannot:
+
+* Edit outbound plans
+* Modify user permissions
+* Delete historical records
+* Manage platform settings
+
+---
+
+# Role: Outbound Leader
+
+## Purpose
+
+Creates and manages outbound labor plans.
+
+## Permissions
+
+Can:
+
+* Create outbound plans
+* Edit outbound plans
+* Publish outbound plans
+* Manage outbound assignments
+* Manage overtime assignments
+* Manage ICQA support assignments
+* Manage housekeeping assignments
+* Manage training assignments
+* View outbound history
+* Use switch feature
+* Use reassignment feature
+
+Cannot:
+
+* Edit inbound plans
+* Modify user permissions
+* Delete historical records
+* Manage platform settings
+
+---
+
+# Role: Viewer
+
+## Purpose
+
+Read-only role used for TV displays and informational viewing.
+
+## Permissions
+
+Can:
+
+* View published plans
+* View TV mode
+* View presentation mode
+
+Cannot:
+
+* Create plans
+* Edit plans
+* Publish plans
+* View settings
+* View administrative pages
+
+---
+
+# Future Role Support
+
+The system must support adding new roles without requiring code changes.
+
+Examples:
+
+* Operations Manager
+* Area Manager
+* Transportation Lead
+* ICQA Lead
+* Safety Coordinator
+
+Permissions should be configurable through role definitions.
+
+---
+
+# Department Separation Rules
+
+Inbound Leaders:
+
+Can access:
+
+* Inbound plans
+* Inbound history
+* Inbound templates
+
+Cannot access:
+
+* Outbound editing functions
+
+---
+
+Outbound Leaders:
+
+Can access:
+
+* Outbound plans
+* Outbound history
+* Outbound templates
+
+Cannot access:
+
+* Inbound editing functions
+
+---
+
+# Key Separation Rules
+
+Plans must be separated by:
+
+* Department
+* Key
+* Date
+
+Examples:
+
+Inbound Leader:
+
+* Can create Key 1 Inbound Plan
+* Can create Key 2 Inbound Plan
+* Can create Key 3 Inbound Plan
+
+Outbound Leader:
+
+* Can create Key 1 Outbound Plan
+* Can create Key 2 Outbound Plan
+* Can create Key 3 Outbound Plan
+
+Only one ACTIVE plan should exist per:
+
+Department + Key + Date
+
+---
+
+# Audit Logging
+
+The system must record:
+
+* Plan creation
+* Plan publication
+* Plan edits
+* Assignment changes
+* Assignment switches
+* Call-offs
+* Overtime additions
+* Training assignments
+* Settings changes
+
+Each log must include:
+
+* User
+* Timestamp
+* Action
+* Old value
+* New value
+
+---
+
+# Authentication
+
+Authentication will use Supabase Auth.
+
+Requirements:
+
+* Secure login
+* Session protection
+* Route protection
+* Middleware protection
+* Role verification
+* RLS enforcement
+
+Users must not be able to access unauthorized data through direct URLs or API calls.
+
+---
+
+# Security Principle
+
+The frontend is never trusted.
+
+All authorization decisions must be validated:
+
+* Server-side
+* Database-side
+
+Every sensitive action must verify:
+
+* User identity
+* User role
+* Department access
+* Key access

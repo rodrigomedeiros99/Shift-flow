@@ -1,0 +1,426 @@
+# Section 3 — Security Standards
+
+## Purpose
+
+ShiftFlow is a production warehouse operations platform.
+
+Security must be considered in every layer:
+
+* Frontend
+* Backend
+* Database
+* Authentication
+* Authorization
+* Infrastructure
+
+Security is not optional.
+
+Security is a core requirement.
+
+---
+
+# Security Philosophy
+
+Assume:
+
+* Users make mistakes
+* Requests can be manipulated
+* URLs can be guessed
+* Frontend code can be inspected
+
+Never trust client-side validation.
+
+Every sensitive operation must be validated server-side.
+
+---
+
+# Authentication Standards
+
+Authentication Provider:
+
+Supabase Auth
+
+Supported methods:
+
+* Email + Password
+
+Future Support:
+
+* SSO
+* Microsoft Entra ID
+* Google Workspace
+
+---
+
+# Password Standards
+
+Requirements:
+
+* Minimum length
+* Uppercase
+* Lowercase
+* Number
+* Special character
+
+Never store passwords directly.
+
+Authentication should be handled by Supabase Auth.
+
+---
+
+# Authorization Standards
+
+Authentication answers:
+
+```txt
+Who are you?
+```
+
+Authorization answers:
+
+```txt
+What are you allowed to do?
+```
+
+Both are required.
+
+---
+
+# Role-Based Access Control (RBAC)
+
+Supported roles:
+
+* Admin
+* Supervisor
+* Inbound Leader
+* Outbound Leader
+* Viewer
+
+Permissions must be enforced:
+
+* UI
+* API
+* Database
+
+---
+
+# Frontend Security Rule
+
+Never assume frontend permissions are sufficient.
+
+Example:
+
+Bad:
+
+Hide button.
+
+Good:
+
+Hide button + verify permission server-side.
+
+---
+
+# Route Protection
+
+Protected routes:
+
+```txt
+/dashboard
+/create-plan
+/history
+/settings
+/templates
+/associates
+/equipment
+/tasks
+```
+
+Users without permission must be redirected.
+
+---
+
+# Server Action Security
+
+All Server Actions must verify:
+
+* User session
+* User role
+* Facility access
+* Department access
+
+before performing actions.
+
+---
+
+# API Security
+
+All API routes must:
+
+* Validate input
+* Verify permissions
+* Handle errors safely
+
+Never trust request payloads.
+
+---
+
+# Input Validation
+
+Validation Library:
+
+Zod
+
+All forms must validate:
+
+* Client-side
+* Server-side
+
+Never rely on frontend validation alone.
+
+---
+
+# Row Level Security (RLS)
+
+RLS is mandatory.
+
+All production tables must have:
+
+```txt
+RLS ENABLED
+```
+
+No exceptions.
+
+---
+
+# RLS Philosophy
+
+Database rules must enforce permissions.
+
+Even if:
+
+* API fails
+* Frontend fails
+
+the database must remain secure.
+
+---
+
+# Example
+
+Outbound Leader
+
+Can:
+
+* View outbound plans
+* Edit outbound plans
+
+Cannot:
+
+* Modify inbound plans
+
+RLS must enforce this.
+
+---
+
+# Service Role Key Protection
+
+Never expose:
+
+```txt
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+to the browser.
+
+Server-only access.
+
+---
+
+# Environment Variables
+
+Allowed in Browser:
+
+```txt
+NEXT_PUBLIC_SUPABASE_URL
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+Server Only:
+
+```txt
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+Never expose private secrets.
+
+---
+
+# Audit Logging Requirements
+
+The system must record:
+
+* Plan Creation
+* Plan Publication
+* Assignment Changes
+* Assignment Switches
+* Call-Off Changes
+* Overtime Changes
+* Configuration Changes
+* Permission Changes
+
+Audit logs are immutable.
+
+---
+
+# Security Event Logging
+
+Record:
+
+* Failed login attempts
+* Permission violations
+* Unauthorized access attempts
+* Critical errors
+
+---
+
+# Sensitive Operations
+
+Require additional validation:
+
+* User creation
+* Role changes
+* Facility changes
+* Configuration updates
+
+---
+
+# XSS Protection
+
+Prevent Cross-Site Scripting.
+
+Requirements:
+
+* Escape user content
+* Sanitize inputs
+* Avoid dangerous HTML rendering
+
+---
+
+# SQL Injection Protection
+
+Use:
+
+* Parameterized queries
+* Supabase client methods
+
+Never build raw SQL strings from user input.
+
+---
+
+# CSRF Protection
+
+Use:
+
+* Secure cookies
+* Session validation
+* SameSite protections
+
+Follow Supabase best practices.
+
+---
+
+# Rate Limiting
+
+Protect:
+
+* Login
+* Password reset
+* Future public endpoints
+
+Examples:
+
+* Contact forms
+* External integrations
+
+Future recommendation:
+
+Cloudflare Turnstile.
+
+---
+
+# Session Management
+
+Sessions must:
+
+* Expire appropriately
+* Refresh securely
+* Be validated on protected routes
+
+---
+
+# Data Protection
+
+Protect:
+
+* Employee information
+* Assignment history
+* Audit logs
+* Operational records
+
+Only authorized users may access data.
+
+---
+
+# Error Handling
+
+Never expose:
+
+* Stack traces
+* Secrets
+* Internal implementation details
+
+Show user-friendly messages.
+
+Log technical details server-side.
+
+---
+
+# Backup Strategy
+
+Historical records are critical.
+
+Future recommendations:
+
+* Automated backups
+* Recovery procedures
+* Retention policies
+
+---
+
+# Security Testing
+
+Verify:
+
+* RLS policies
+* Protected routes
+* Role restrictions
+* Authentication flows
+
+before production release.
+
+---
+
+# Production Security Principle
+
+Security must exist at:
+
+1. UI Layer
+2. Server Layer
+3. Database Layer
+
+If one layer fails,
+the others must continue protecting the system.
+
+Defense in depth is mandatory.

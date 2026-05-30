@@ -1,0 +1,340 @@
+# Section 7 — Fair Rotation Engine & Auto-Plan Generation
+
+## Purpose
+
+The Fair Rotation Engine is responsible for helping leaders distribute assignments fairly while maintaining operational flexibility.
+
+The goal is not to replace leadership decisions.
+
+The goal is to:
+
+* Reduce repetitive assignments
+* Improve labor distribution
+* Speed up planning
+* Provide recommendations
+* Generate fair plans automatically
+
+Leaders always maintain final authority.
+
+---
+
+# Planning Philosophy
+
+The system should assist.
+
+The system should not force.
+
+Warnings may be ignored by authorized leaders.
+
+Examples:
+
+* John worked CL yesterday
+* Maria unloaded yesterday
+* Carlos worked Put Away yesterday
+
+The system may recommend alternatives.
+
+The leader can still assign them if operationally necessary.
+
+---
+## Rotation-First Planning Philosophy
+
+ShiftFlow shall prioritize assignment rotation whenever operationally possible.
+
+The objective is to ensure associates perform different planned assignments across consecutive workdays.
+
+Example:
+
+Monday:
+John → CL
+
+Tuesday:
+John → Loader
+
+Wednesday:
+John → FLR
+
+Thursday:
+John → Tile Overbox
+
+The system should attempt to distribute assignments fairly across all associates.
+
+The Fair Rotation Engine should evaluate:
+
+* Previous planned assignments
+* Assignment frequency
+* Recent assignment history
+* Team-wide task distribution
+* Equipment certifications
+* Operational requirements
+
+The goal is not only to avoid repeating yesterday's task.
+
+The goal is to create balanced assignment exposure across multiple tasks over time.
+
+The engine should prefer assignments that an associate has performed less frequently.
+
+Leaders may override recommendations when operational requirements demand it.
+
+Rotation calculations shall use Planned Assignment History rather than Activity History.
+
+
+# Planned Assignment History Rule
+
+The Fair Rotation Engine shall use:
+
+Planned Assignment History
+
+as its primary source of rotation decisions.
+
+The engine shall not primarily use:
+
+Activity History
+
+for fairness calculations.
+
+---
+
+# Example
+
+Monday
+
+Planned Assignment:
+
+John → CL
+
+Activities:
+
+John → CL
+John → Loader
+John → Housekeeping
+
+Tuesday
+
+The Fair Rotation Engine should consider:
+
+John → CL yesterday
+
+not:
+
+John → Loader yesterday
+
+because Loader was only a temporary operational reassignment.
+
+---
+
+# Global Rule
+
+This rule applies to:
+
+* Inbound
+* Outbound
+* Training assignments
+* Support assignments
+* Middle Mile assignments
+* ICQA assignments
+
+---
+
+# Auto-Plan Inputs
+
+The Auto-Plan Generator should evaluate:
+
+* Department
+* Shift Key
+* Date
+* Available associates
+* Call-offs
+* Overtime
+* Equipment certifications
+* Active dock doors
+* Templates
+* Planned Assignment History
+* Rotation rules
+* Special assignments
+* Training assignments
+
+---
+
+# Auto-Plan Priority Order
+
+The planning engine should prioritize:
+
+1. Associate availability
+2. Equipment certification requirements
+3. Department compatibility
+4. Shift key compatibility
+5. Fair rotation recommendations
+6. Historical planning patterns
+7. Template requirements
+
+---
+
+# Equipment Validation
+
+The engine shall never assign an associate to equipment they are not certified to operate.
+
+Example:
+
+Task:
+CL
+
+Requires:
+Clamp
+
+If John is not Clamp certified:
+
+John cannot be automatically assigned.
+
+---
+
+# Rotation Warnings
+
+Examples:
+
+Outbound:
+
+"John was planned for CL yesterday. Are you sure?"
+
+Inbound:
+
+"Maria was planned for Unload yesterday. Are you sure?"
+
+The leader may:
+
+* Accept recommendation
+* Override recommendation
+
+---
+
+# Rotation Lookback Period
+
+The system should support configurable lookback periods.
+
+Examples:
+
+* Yesterday
+* Last 3 days
+* Last week
+* Last 30 days
+
+Default recommendation:
+
+Previous day.
+
+---
+
+# Assignment Frequency Tracking
+
+The system should track how often associates perform:
+
+* CL
+* FLR
+* OBL
+* Unload
+* Put Away
+* Middle Mile
+* Support Outbound
+* Housekeeping
+* ICQA
+
+This data supports future analytics.
+
+---
+
+# Auto-Plan Confidence
+
+The generated plan should provide a confidence score.
+
+Example:
+
+95%
+Excellent rotation and certification coverage.
+
+82%
+Minor rotation conflicts detected.
+
+65%
+Several rotation conflicts detected.
+
+This helps leaders quickly evaluate plan quality.
+
+---
+
+# Special Assignment Protection
+
+Associates assigned to:
+
+* Training
+* ICQA
+* Middle Mile
+* Support Outbound
+* Overtime
+
+should be considered occupied.
+
+The Auto-Plan Generator should not double-assign them.
+
+---
+
+# Future AI Enhancements
+
+Future versions may include:
+
+* Labor forecasting
+* Staffing recommendations
+* Workload balancing
+* Historical pattern analysis
+* Predictive labor allocation
+
+The architecture should support future AI-based planning features.
+
+---
+
+# Operational Philosophy
+
+The Fair Rotation Engine exists to assist leaders.
+
+The system should:
+
+* Recommend
+* Warn
+* Suggest
+
+but never remove leader control.
+
+Human leadership decisions always take priority over automation.
+
+## Leadership Override Principle
+
+ShiftFlow shall recommend fair assignment rotation whenever operationally possible.
+
+However, leadership decisions always take precedence.
+
+The system may:
+
+* Recommend
+* Suggest
+* Warn
+* Score
+
+The system shall not:
+
+* Prevent assignments
+* Block plan publication
+* Force rotation
+
+Examples:
+
+* John worked CL yesterday.
+* Maria unloaded yesterday.
+* Carlos worked Put Away twice this week.
+
+The system may present a rotation notice.
+
+Leaders may always choose to proceed with the assignment.
+
+ShiftFlow exists to assist leadership decisions, not replace them.
+
+Human operational judgment remains the final authority.
+

@@ -1,0 +1,388 @@
+# Section 11 — Non-Functional Requirements
+
+## Purpose
+
+Non-Functional Requirements define how ShiftFlow must operate from a technical, security, performance, reliability, and usability perspective.
+
+These requirements are mandatory and apply to all modules of the platform.
+
+---
+
+# Performance Requirements
+
+## Planning Speed
+
+The system should allow leaders to:
+
+* Open plans quickly
+* Generate plans quickly
+* Publish plans quickly
+
+Targets:
+
+Dashboard Load:
+< 2 seconds
+
+Plan Generation:
+< 3 seconds
+
+Assignment Switch:
+< 1 second
+
+TV Updates:
+< 1 second after change
+
+---
+
+## Large Team Support
+
+The system must support:
+
+* 500+ associates
+* Multiple departments
+* Multiple shift keys
+* Years of historical records
+
+without requiring architectural redesign.
+
+---
+
+## Query Optimization
+
+The platform should:
+
+* Select only required fields
+* Use pagination where appropriate
+* Use indexed database queries
+* Avoid unnecessary database calls
+
+---
+
+# Realtime Requirements
+
+ShiftFlow relies heavily on realtime updates.
+
+Changes should automatically appear on:
+
+* Dashboard
+* TV Mode
+* Presentation Mode
+
+Examples:
+
+* Assignment Switch
+* New Assignment
+* Call-Off
+* Overtime Addition
+* Housekeeping Assignment
+* Plan Publication
+
+No manual refresh should be required.
+
+---
+
+# Reliability Requirements
+
+The system should be designed for daily operational use.
+
+Examples:
+
+* Shift changes
+* Morning meetings
+* High activity periods
+
+The application should remain stable throughout the workday.
+
+---
+
+# Data Integrity
+
+The system must preserve:
+
+* Planned Assignment History
+* Activity History
+* Audit Logs
+
+Data loss is unacceptable.
+
+Historical records must remain accurate.
+
+---
+
+# Concurrent Editing Protection
+
+Multiple leaders may access the same plan.
+
+The system must prevent:
+
+* Data corruption
+* Overwrites
+* Race conditions
+
+Examples:
+
+Leader A edits John.
+
+Leader B edits John simultaneously.
+
+The system must handle conflicts safely.
+
+---
+
+# Audit Requirements
+
+The system must log:
+
+* Plan creation
+* Plan publication
+* Assignment edits
+* Assignment switches
+* Call-Off changes
+* Overtime additions
+* Settings changes
+
+Each audit record should include:
+
+* User
+* Action
+* Timestamp
+* Previous Value
+* New Value
+
+---
+
+# Security Requirements
+
+Authentication:
+
+Supabase Auth
+
+Authorization:
+
+Role-Based Access Control (RBAC)
+
+Database:
+
+Row Level Security (RLS)
+
+---
+
+# Security Principles
+
+Never trust the frontend.
+
+All sensitive actions must be validated:
+
+* Server-side
+* Database-side
+
+---
+
+# Access Protection
+
+Users should only access:
+
+* Authorized departments
+* Authorized plans
+* Authorized administrative areas
+
+Direct URL access must not bypass permissions.
+
+---
+
+# Route Protection
+
+Protected routes include:
+
+* Dashboard
+* Planning
+* History
+* Settings
+* Administration
+
+Unauthorized users should be redirected appropriately.
+
+---
+
+# Environment Variables
+
+Sensitive credentials must never be exposed to the browser.
+
+Examples:
+
+Allowed:
+
+Public Supabase URL
+
+Not Allowed:
+
+Service Role Keys
+
+Secrets
+
+Private Credentials
+
+---
+
+# Availability Requirements
+
+The platform should be available during warehouse operational hours.
+
+Unexpected failures should be minimized.
+
+---
+
+# Offline Tolerance
+
+Future versions should support limited degraded operation if realtime connectivity is temporarily lost.
+
+Example:
+
+TV displays continue showing the most recent published plan until connection is restored.
+
+---
+
+# User Experience Requirements
+
+The platform should feel:
+
+* Fast
+* Modern
+* Professional
+* Predictable
+
+Users should not require technical training.
+
+---
+
+# Responsive Design Requirements
+
+The platform must support:
+
+Mobile Phones
+
+Small Tablets
+
+Large Tablets
+
+Laptops
+
+Desktop Monitors
+
+Ultrawide Displays
+
+Warehouse TVs
+
+---
+
+# Mobile Experience
+
+Leaders walking the floor should be able to:
+
+* View plans
+* Move associates
+* Switch assignments
+* Update activities
+
+from mobile devices.
+
+---
+
+# Tablet Experience
+
+Tablets should provide nearly full dashboard functionality.
+
+---
+
+# TV Experience
+
+TV Mode should prioritize:
+
+* Large text
+* Readability
+* Simplicity
+* Distance viewing
+
+---
+
+# Accessibility Requirements
+
+The application should support:
+
+* Keyboard navigation
+* Screen readers
+* Color contrast standards
+* Clear focus indicators
+
+---
+
+# Scalability Requirements
+
+ShiftFlow is initially designed for:
+
+DFC 5523
+
+However, the architecture must support future expansion to:
+
+* Additional DFCs
+* Additional facilities
+* Additional departments
+
+without major redesign.
+
+---
+
+# Maintainability Requirements
+
+The codebase must be:
+
+* Organized
+* Modular
+* Reusable
+* Well-documented
+
+Complex business rules should be documented for future developers.
+
+---
+
+# Testing Requirements
+
+Critical workflows should be testable.
+
+Examples:
+
+* Plan Generation
+* Assignment Switching
+* Plan Publication
+* Realtime Updates
+* Rotation Recommendations
+
+---
+
+# Deployment Requirements
+
+Deployment Platform:
+
+Vercel
+
+Requirements:
+
+* Successful production build
+* No TypeScript errors
+* No build warnings that affect functionality
+* Secure environment variable handling
+
+---
+
+# Production Readiness Principle
+
+All implementations should be treated as production code.
+
+Avoid:
+
+* Demo-only implementations
+* Temporary shortcuts
+* Hardcoded operational values
+* Placeholder business logic
+
+The platform should be capable of supporting real warehouse operations from day one.

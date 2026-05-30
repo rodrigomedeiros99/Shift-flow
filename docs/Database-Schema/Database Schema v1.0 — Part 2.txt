@@ -1,0 +1,205 @@
+Database Schema v1.0 — Part 2
+
+Operations & Planning
+task_types
+
+Stores all configurable tasks.
+
+task_types
+Column	Type	Purpose
+id	uuid	Primary key
+facility_id	uuid	DFC/facility
+department_id	uuid	Inbound or Outbound
+name	text	CL, FLR, Unload, Put Away, etc.
+default_equipment_id	uuid	Optional default equipment
+active	boolean	Active/inactive
+sort_order	integer	Display order
+created_at	timestamptz	Created date
+
+Examples:
+
+Outbound:
+CL
+FLR
+OBL
+Zone 1 Loader
+Tile Overbox
+
+Inbound:
+Unload
+Put Away
+Middle Mile
+Support Outbound
+Housekeeping
+dock_doors
+
+Stores inbound dock doors.
+
+dock_doors
+Column	Type	Purpose
+id	uuid	Primary key
+facility_id	uuid	DFC/facility
+door_number	text	635, 622, etc.
+active	boolean	Active/inactive
+notes	text	Optional
+sort_order	integer	Display order
+daily_plans
+
+Main plan table.
+
+daily_plans
+Column	Type	Purpose
+id	uuid	Primary key
+facility_id	uuid	Facility
+department_id	uuid	Inbound/Outbound
+shift_key_id	uuid	Key 1/2/3
+plan_date	date	Plan date
+version	integer	Version number
+status	text	draft, published, closed, archived
+created_by	uuid	User profile
+published_at	timestamptz	When published
+closed_at	timestamptz	When closed
+created_at	timestamptz	Created date
+
+Important rule:
+
+Only one active/published plan per facility + department + key + date.
+
+If another leader tries to create one, show duplicate warning.
+
+assignments
+
+Current live assignments for a plan.
+
+assignments
+Column	Type	Purpose
+id	uuid	Primary key
+daily_plan_id	uuid	Plan
+associate_id	uuid	Associate
+task_type_id	uuid	Task
+equipment_id	uuid	Equipment
+dock_door_id	uuid	Optional for inbound
+assignment_type	text	planned, overtime, training, support, housekeeping
+status	text	assigned, active, available, break, lunch, completed
+notes	text	Optional
+is_primary_planned	boolean	True if original planned assignment
+started_at	timestamptz	Start time
+ended_at	timestamptz	End time
+created_at	timestamptz	Created date
+
+This table shows the current/live state.
+
+planned_assignment_history
+
+Stores official planned assignments.
+
+Used by the Fair Rotation Recommendation Engine.
+
+planned_assignment_history
+Column	Type	Purpose
+id	uuid	Primary key
+daily_plan_id	uuid	Plan
+associate_id	uuid	Associate
+department_id	uuid	Department
+shift_key_id	uuid	Key
+task_type_id	uuid	Planned task
+equipment_id	uuid	Planned equipment
+dock_door_id	uuid	Optional
+plan_date	date	Date
+created_at	timestamptz	Created date
+
+This is the table used for rotation.
+
+Example:
+
+Monday:
+John → CL
+
+Tuesday:
+John → Loader
+activity_history
+
+Stores everything that happened during the shift.
+
+activity_history
+Column	Type	Purpose
+id	uuid	Primary key
+daily_plan_id	uuid	Plan
+associate_id	uuid	Associate
+from_task_type_id	uuid	Previous task
+to_task_type_id	uuid	New task
+from_equipment_id	uuid	Previous equipment
+to_equipment_id	uuid	New equipment
+from_dock_door_id	uuid	Previous dock door
+to_dock_door_id	uuid	New dock door
+action_type	text	assigned, moved, switched, removed, completed
+reason	text	Optional
+changed_by	uuid	User profile
+changed_at	timestamptz	Timestamp
+
+Used for timelines and reports.
+
+special_assignments
+
+Stores special cases from the morning wizard.
+
+special_assignments
+Column	Type	Purpose
+id	uuid	Primary key
+daily_plan_id	uuid	Plan
+associate_id	uuid	Associate
+type	text	overtime, middle_mile, icqa_support, training, support_outbound
+task_type_id	uuid	Task
+equipment_id	uuid	Equipment
+dock_door_id	uuid	Optional
+related_associate_id	uuid	For trainer/new hire pair
+notes	text	Optional
+created_at	timestamptz	Created date
+
+Example:
+
+Training:
+Trainer John
+New Hire Mike
+Task: FLR
+Equipment: Pacer
+call_offs
+
+Stores daily call-offs.
+
+call_offs
+Column	Type	Purpose
+id	uuid	Primary key
+daily_plan_id	uuid	Plan
+associate_id	uuid	Associate
+reason	text	Optional
+created_by	uuid	User
+created_at	timestamptz	Created date
+assignment_switches
+
+Optional but useful for clean switch tracking.
+
+assignment_switches
+Column	Type	Purpose
+id	uuid	Primary key
+daily_plan_id	uuid	Plan
+associate_a_id	uuid	First associate
+associate_b_id	uuid	Second associate
+associate_a_old_task_id	uuid	A old task
+associate_a_new_task_id	uuid	A new task
+associate_b_old_task_id	uuid	B old task
+associate_b_new_task_id	uuid	B new task
+switched_by	uuid	User
+reason	text	Optional
+created_at	timestamptz	Timestamp
+
+This helps answer:
+
+Who switched John and Maria?
+When?
+Why?
+Core database principle
+
+assignments = current/live state
+planned_assignment_history = original published plan
+activity_history = everything that changed during the day

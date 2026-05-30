@@ -1,0 +1,513 @@
+# Section 5 — UI/UX Standards & Design System
+
+## Purpose
+
+ShiftFlow is a warehouse operations platform.
+
+The design should feel:
+
+* Professional
+* Corporate
+* Fast
+* Operational
+* Easy to scan
+
+The UI should support leaders making decisions quickly.
+
+The design should not resemble a generic startup dashboard.
+
+---
+
+# Design Philosophy
+
+The application should prioritize:
+
+1. Readability
+2. Speed
+3. Clarity
+4. Consistency
+5. Operational awareness
+
+Every screen should help leaders understand workforce allocation immediately.
+
+---
+
+# Brand Identity
+
+Primary Accent Color:
+
+Home Depot Orange
+
+```txt
+#F96302
+```
+
+This color should be used for:
+
+* Active tabs
+* Buttons
+* Headers
+* Highlights
+* Key indicators
+
+Avoid overusing orange.
+
+Orange should guide attention.
+
+---
+
+# Color Palette
+
+Background:
+
+```txt
+#111827
+```
+
+Cards:
+
+```txt
+#1F2937
+```
+
+Borders:
+
+```txt
+#374151
+```
+
+Primary Text:
+
+```txt
+#F9FAFB
+```
+
+Secondary Text:
+
+```txt
+#D1D5DB
+```
+
+Success:
+
+```txt
+#22C55E
+```
+
+Warning:
+
+```txt
+#FACC15
+```
+
+Danger:
+
+```txt
+#EF4444
+```
+
+Info:
+
+```txt
+#3B82F6
+```
+
+---
+
+# Layout Philosophy
+
+The application should feel like:
+
+Warehouse Operations Software
+
+not:
+
+Consumer Social Media
+
+not:
+
+Generic CRM
+
+not:
+
+Marketing Dashboard
+
+---
+
+# Dashboard Layout
+
+Desktop:
+
+```txt
+Sidebar
+Top Header
+Content Area
+```
+
+Sidebar:
+
+* Dashboard
+* Create Plan
+* Live Plan
+* History
+* Associates
+* Tasks
+* Equipment
+* Templates
+* Settings
+
+---
+
+# Header
+
+Display:
+
+* Facility
+* Department
+* Key
+* Current User
+* Notifications
+
+---
+
+# Card Standards
+
+Use cards extensively.
+
+Cards should display:
+
+* Tasks
+* Assignments
+* Equipment
+* Dock Doors
+* Metrics
+
+Cards should be:
+
+* Clean
+* Large
+* Easy to scan
+
+---
+
+# Planning Board Design
+
+Assignments should use:
+
+Assignment Cards
+
+Example:
+
+```txt
+CL
+
+John
+
+Clamp
+
+Assigned
+```
+
+Not dense spreadsheet tables.
+
+---
+
+# Switch Feature UX
+
+Each assignment card should contain:
+
+* Edit
+* Switch
+* Remove
+
+Actions should be obvious.
+
+No hidden workflows.
+
+---
+
+# Morning Wizard UX
+
+Morning setup should feel:
+
+Fast
+
+Simple
+
+Guided
+
+Use:
+
+Step-by-step wizard
+
+Examples:
+
+Step 1:
+Call-Offs
+
+Step 2:
+Overtime
+
+Step 3:
+Middle Mile
+
+Step 4:
+Training
+
+Step 5:
+Generate Plan
+
+---
+
+# TV Mode Design
+
+TV Mode must prioritize:
+
+* Large typography
+* Large cards
+* Minimal controls
+* High contrast
+
+Design for warehouse viewing distance.
+
+---
+
+# TV Typography
+
+Text should remain readable:
+
+10–30 feet away
+
+Avoid small fonts.
+
+---
+
+# Presentation Mode
+
+Presentation Mode should:
+
+* Hide navigation
+* Maximize content
+* Use larger text
+* Support Outbound/Inbound toggles
+
+---
+
+# Status Indicators
+
+Standard status colors:
+
+Assigned:
+
+Blue
+
+Active:
+
+Green
+
+Break:
+
+Yellow
+
+Lunch:
+
+Yellow
+
+Completed:
+
+Gray
+
+Overtime:
+
+Orange
+
+Training:
+
+Purple
+
+---
+
+# Tables
+
+Tables should be used only when appropriate.
+
+Examples:
+
+* History
+* Reports
+* Analytics
+
+Avoid using tables for active planning workflows.
+
+Cards are preferred.
+
+---
+
+# Forms
+
+Forms should:
+
+* Validate immediately
+* Display clear errors
+* Be easy to complete
+
+Use:
+
+* Dropdowns
+* Searchable selects
+* Multi-selects
+
+when appropriate.
+
+---
+
+# Associate Selection
+
+Leaders should rarely type names manually.
+
+Preferred:
+
+Searchable Associate Picker
+
+Example:
+
+```txt
+Select Associate
+
+John
+Maria
+Carlos
+```
+
+This speeds up planning.
+
+---
+
+# Mobile Experience
+
+Leaders walking the floor should be able to:
+
+* View plans
+* Move associates
+* Switch assignments
+* Update assignments
+
+using phones.
+
+---
+
+# Tablet Experience
+
+Tablets should support:
+
+Almost full dashboard functionality.
+
+---
+
+# Desktop Experience
+
+Desktop is the primary planning experience.
+
+Optimize for:
+
+* Large monitors
+* Operational visibility
+* Fast planning
+
+---
+
+# Responsive Standards
+
+Support:
+
+* Mobile
+* Tablet
+* Laptop
+* Desktop
+* Ultrawide
+* TV
+
+No horizontal scrolling for critical workflows.
+
+---
+
+# Accessibility
+
+Support:
+
+* Keyboard navigation
+* Focus states
+* Screen readers
+* Proper contrast ratios
+
+Accessibility is required.
+
+---
+
+# Loading States
+
+Every screen must have:
+
+* Loading State
+* Error State
+* Empty State
+
+Never show blank screens.
+
+---
+
+# Animation Standards
+
+Use subtle animations only.
+
+Examples:
+
+* Card transitions
+* Modal transitions
+* Toast notifications
+
+Avoid excessive motion.
+
+---
+
+# Notification Standards
+
+Use toast notifications.
+
+Examples:
+
+Plan Published
+
+Assignment Switched
+
+Call-Off Added
+
+Template Saved
+
+Notifications should be informative and non-disruptive.
+
+---
+
+# UI Consistency
+
+Buttons
+
+Cards
+
+Tables
+
+Forms
+
+Modals
+
+must follow a shared design system.
+
+Avoid custom styling per page.
+
+---
+
+# User Experience Principle
+
+The application should feel intuitive enough that a leader can begin using it with minimal training.
+
+The software should reduce operational effort rather than create additional complexity.

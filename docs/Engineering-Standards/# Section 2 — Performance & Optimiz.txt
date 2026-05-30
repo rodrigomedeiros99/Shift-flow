@@ -1,0 +1,403 @@
+# Section 2 — Performance & Optimization Standards
+
+## Purpose
+
+ShiftFlow is a realtime operational platform.
+
+Performance is a core feature.
+
+The system must remain responsive during:
+
+* Morning planning
+* Shift changes
+* High activity periods
+* TV updates
+* Historical reporting
+
+Performance should be considered during every implementation.
+
+---
+
+# Performance Philosophy
+
+The application should:
+
+* Load quickly
+* Update quickly
+* Scale efficiently
+* Avoid unnecessary rendering
+* Avoid unnecessary database queries
+
+Performance should be built into the architecture from the beginning.
+
+---
+
+# Dashboard Performance Targets
+
+Target metrics:
+
+Dashboard Load:
+< 2 seconds
+
+Plan Load:
+< 2 seconds
+
+Plan Generation:
+< 3 seconds
+
+Assignment Switch:
+< 1 second
+
+Realtime Update:
+< 1 second
+
+TV Refresh:
+Near instant
+
+---
+
+# Lazy Loading Standards
+
+Heavy components should be loaded only when needed.
+
+Examples:
+
+* Analytics
+* Reports
+* Historical Views
+* Large Charts
+* Export Tools
+
+Use:
+
+```ts
+dynamic()
+```
+
+for large client-side modules.
+
+---
+
+# Code Splitting
+
+Pages should load only the code they require.
+
+Avoid:
+
+Loading all application features on initial page load.
+
+Examples:
+
+History module should not load when viewing:
+
+```txt
+/dashboard
+```
+
+Analytics should not load when viewing:
+
+```txt
+/create-plan
+```
+
+---
+
+# Server Components First
+
+Default:
+
+Server Components
+
+Benefits:
+
+* Smaller bundles
+* Faster load times
+* Better SEO
+* Reduced JavaScript
+
+Client Components should be used only when necessary.
+
+---
+
+# Client Component Rules
+
+Allowed:
+
+* Forms
+* Drag-and-drop
+* Realtime interactions
+* Modals
+* Interactive dashboards
+
+Avoid:
+
+Making entire pages client-side unnecessarily.
+
+---
+
+# Query Optimization
+
+Database queries must:
+
+* Select only required fields
+* Avoid SELECT *
+* Use indexes
+* Use pagination when needed
+
+Bad:
+
+```sql
+SELECT *
+FROM activity_history
+```
+
+Good:
+
+```sql
+SELECT
+id,
+associate_id,
+changed_at
+FROM activity_history
+```
+
+---
+
+# Pagination Requirements
+
+Required for:
+
+* Activity History
+* Audit Logs
+* Reports
+* Analytics
+
+Never load thousands of records at once.
+
+---
+
+# Realtime Standards
+
+Use Supabase Realtime.
+
+Realtime updates should be limited to:
+
+* Current plans
+* TV mode
+* Presentation mode
+* Active dashboards
+
+Avoid subscribing to unnecessary tables.
+
+---
+
+# Realtime Channel Strategy
+
+Separate channels by:
+
+Facility
+
+Department
+
+Plan
+
+Example:
+
+```txt
+facility_5523_outbound_key1
+```
+
+instead of:
+
+```txt
+all_updates
+```
+
+This reduces traffic and improves performance.
+
+---
+
+# Caching Strategy
+
+Cache:
+
+* Task Types
+* Equipment Types
+* Shift Keys
+* Dock Doors
+* Departments
+
+These rarely change.
+
+Avoid repeated requests.
+
+---
+
+# Data Fetching Standards
+
+Use:
+
+TanStack Query
+
+for:
+
+* Cached queries
+* Automatic refetching
+* Optimistic updates
+* Error handling
+
+---
+
+# Optimistic Updates
+
+Supported actions:
+
+* Assignment Switch
+* Move Associate
+* Update Status
+
+The UI should update immediately while the database update completes in the background.
+
+Rollback if the update fails.
+
+---
+
+# History Optimization
+
+History tables will grow rapidly.
+
+Requirements:
+
+* Indexed queries
+* Pagination
+* Date filtering
+* Department filtering
+* Associate filtering
+
+Never load full history tables into memory.
+
+---
+
+# Analytics Optimization
+
+Analytics calculations should:
+
+* Run server-side
+* Use aggregation queries
+* Avoid client-side processing of large datasets
+
+---
+
+# TV Mode Optimization
+
+TV mode must be lightweight.
+
+Requirements:
+
+* Minimal database requests
+* Realtime updates only
+* No heavy analytics
+* No unnecessary components
+
+TV mode should remain responsive even on older displays.
+
+---
+
+# Build Optimization
+
+Production builds must:
+
+* Pass TypeScript checks
+* Pass linting
+* Pass build validation
+
+Before deployment:
+
+```bash
+npm run lint
+npm run build
+```
+
+must succeed.
+
+---
+
+# Bundle Size Standards
+
+Avoid large dependencies.
+
+Before adding a package:
+
+Ask:
+
+```txt
+Can this be built without the dependency?
+```
+
+Prefer lightweight solutions.
+
+---
+
+# Asset Optimization
+
+Use:
+
+Next.js Image
+
+for images.
+
+Optimize:
+
+* Images
+* Icons
+* Fonts
+
+Avoid oversized assets.
+
+---
+
+# Memory Usage
+
+Avoid:
+
+* Large in-memory arrays
+* Repeated calculations
+* Duplicate datasets
+
+Reuse cached results whenever possible.
+
+---
+
+# Vercel Optimization
+
+Follow Vercel best practices.
+
+Requirements:
+
+* Edge-friendly architecture where appropriate
+* Efficient Server Actions
+* Proper caching headers
+* Minimal cold-start impact
+
+---
+
+# Future Scale Targets
+
+The architecture should support:
+
+* Multiple DFC facilities
+* Multiple departments
+* 500+ associates
+* Millions of historical records
+
+without requiring major redesign.
+
+---
+
+# Performance Principle
+
+Performance is not a future enhancement.
+
+Performance is a core requirement.
+
+Every feature must be designed with scalability and responsiveness in mind.

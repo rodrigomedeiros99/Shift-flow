@@ -1,0 +1,521 @@
+# Section 4 — Code Quality, Maintainability & Deployment Standards
+
+## Purpose
+
+The purpose of this section is to ensure ShiftFlow remains:
+
+* Maintainable
+* Scalable
+* Readable
+* Testable
+* Production-ready
+
+throughout its entire lifecycle.
+
+The codebase should remain understandable even years after initial development.
+
+---
+
+# Clean Code Principle
+
+Every implementation must prioritize:
+
+* Simplicity
+* Readability
+* Reusability
+* Maintainability
+
+Code should be written for humans first.
+
+Computers are easy to satisfy.
+
+Future developers are not.
+
+---
+
+# Production-Ready Principle
+
+All code generated for ShiftFlow must be treated as production code.
+
+Avoid:
+
+* Demo implementations
+* Placeholder logic
+* Mock business workflows
+* Temporary shortcuts
+* Hardcoded operational values
+
+Every feature should be fully integrated and production-ready.
+
+---
+
+# DRY Principle
+
+Follow:
+
+```txt
+Don't Repeat Yourself
+```
+
+Avoid:
+
+* Duplicated business logic
+* Duplicated queries
+* Duplicated validation
+* Duplicated components
+
+If logic is repeated:
+
+Create:
+
+* utility
+* hook
+* service
+* reusable component
+
+instead.
+
+---
+
+# KISS Principle
+
+Follow:
+
+```txt
+Keep It Simple, Stupid
+```
+
+Prefer:
+
+Simple solutions
+
+over
+
+Complex clever solutions.
+
+Maintainability is more important than cleverness.
+
+---
+
+# File Organization Standards
+
+Every file should have a single responsibility.
+
+Bad:
+
+```txt
+Page
+Database Logic
+Validation
+Business Logic
+UI Components
+All inside one file
+```
+
+Good:
+
+Separate responsibilities.
+
+---
+
+# Folder Structure
+
+Required structure:
+
+```txt
+/src
+
+/app
+/components
+/features
+/lib
+/hooks
+/server
+/types
+/styles
+```
+
+---
+
+# Feature Organization
+
+Business logic should be grouped by feature.
+
+Examples:
+
+```txt
+/features/planning
+/features/rotation
+/features/history
+/features/templates
+/features/assignments
+/features/tv
+```
+
+---
+
+# Component Standards
+
+Components should be:
+
+* Reusable
+* Small
+* Focused
+
+Avoid:
+
+Massive components with hundreds of lines.
+
+Preferred:
+
+Split into smaller pieces.
+
+---
+
+# Business Logic Separation
+
+Business rules must never live inside UI components.
+
+Examples:
+
+Bad:
+
+```txt
+Rotation calculations inside React component.
+```
+
+Good:
+
+```txt
+/features/rotation
+```
+
+contains rotation engine.
+
+UI only displays results.
+
+---
+
+# Shared Types
+
+Create reusable types.
+
+Examples:
+
+```txt
+Associate
+Assignment
+DailyPlan
+TaskType
+EquipmentType
+```
+
+Avoid redefining the same type repeatedly.
+
+---
+
+# Shared Constants
+
+Store reusable constants in:
+
+```txt
+/lib/constants
+```
+
+Examples:
+
+* Status values
+* Role values
+* Assignment types
+
+---
+
+# Comments Standards
+
+Comments should explain:
+
+WHY
+
+not
+
+WHAT
+
+Examples:
+
+Good:
+
+```ts
+// We use Planned Assignment History instead of Activity History
+// because reassignment events should not affect fairness calculations.
+```
+
+Bad:
+
+```ts
+// Increment count by 1
+count++
+```
+
+---
+
+# Documentation Standards
+
+Complex business logic must be documented.
+
+Examples:
+
+* Fair Rotation Engine
+* Auto-Plan Generation
+* Assignment Switch Logic
+* Training Logic
+* Overtime Logic
+
+Future developers should understand business intent.
+
+---
+
+# Error Handling Standards
+
+Every critical operation must handle:
+
+* Success
+* Failure
+* Validation errors
+* Permission errors
+* Unexpected exceptions
+
+Never silently fail.
+
+---
+
+# Logging Standards
+
+Important actions should be logged.
+
+Examples:
+
+* Plan generation
+* Plan publication
+* Assignment switch
+* Call-off creation
+* Overtime addition
+
+---
+
+# Testing Philosophy
+
+Critical business logic must be tested.
+
+Examples:
+
+* Rotation engine
+* Plan generator
+* Assignment switch
+* Permission checks
+* History tracking
+
+---
+
+# Unit Testing Requirements
+
+Required for:
+
+* Rotation calculations
+* Assignment validation
+* Auto-plan generation
+* Permission validation
+
+---
+
+# Integration Testing Requirements
+
+Required for:
+
+* Plan creation
+* Plan publication
+* Assignment updates
+* Realtime synchronization
+
+---
+
+# End-to-End Testing Requirements
+
+Required workflows:
+
+Outbound:
+
+* Create plan
+* Publish plan
+* Switch assignment
+* Update assignment
+
+Inbound:
+
+* Create plan
+* Assign dock doors
+* Complete trailer
+* Reassign labor
+
+TV:
+
+* Publish updates
+* Verify realtime display
+
+---
+
+# Git Standards
+
+Branch strategy:
+
+```txt
+main
+develop
+feature/*
+bugfix/*
+```
+
+Examples:
+
+```txt
+feature/outbound-planning
+feature/fair-rotation
+bugfix/realtime-updates
+```
+
+---
+
+# Commit Standards
+
+Use descriptive commits.
+
+Good:
+
+```txt
+feat: add outbound plan generation
+fix: resolve assignment switch validation bug
+refactor: move rotation logic into feature module
+```
+
+Bad:
+
+```txt
+update
+fix stuff
+changes
+```
+
+---
+
+# CI/CD Standards
+
+Every pull request should:
+
+* Pass TypeScript checks
+* Pass linting
+* Pass tests
+* Pass build validation
+
+---
+
+# Vercel Deployment Standards
+
+Deployment target:
+
+Vercel
+
+Requirements:
+
+```bash
+npm run lint
+npm run build
+```
+
+must pass successfully.
+
+---
+
+# Environment Management
+
+Separate:
+
+* Development
+* Preview
+* Production
+
+Never use production secrets locally.
+
+---
+
+# Dependency Management
+
+Before adding a dependency ask:
+
+```txt
+Can we build this ourselves?
+```
+
+Avoid dependency bloat.
+
+Only add libraries that provide clear value.
+
+---
+
+# Version Control Principle
+
+Every feature should be:
+
+* Small
+* Reviewable
+* Testable
+
+Avoid huge uncontrolled changes.
+
+---
+
+# Production Readiness Checklist
+
+Before releasing any feature:
+
+✓ TypeScript passes
+
+✓ Lint passes
+
+✓ Tests pass
+
+✓ Build passes
+
+✓ Permissions verified
+
+✓ RLS verified
+
+✓ Realtime verified
+
+✓ Mobile tested
+
+✓ Desktop tested
+
+✓ TV mode tested
+
+✓ Error states tested
+
+✓ Loading states tested
+
+✓ Audit logs verified
+
+---
+
+# Engineering Principle
+
+ShiftFlow is a production warehouse operations platform.
+
+Every implementation must prioritize:
+
+* Reliability
+* Maintainability
+* Security
+* Performance
+* Scalability
+
+over speed of development.
+
+The goal is to build software that remains stable and maintainable for years.

@@ -1,0 +1,309 @@
+# Section 1 — Architecture & Technology Standards
+
+# ShiftFlow DFC 5523
+
+## Purpose
+
+This document defines the mandatory engineering standards for ShiftFlow DFC 5523.
+
+All generated code must comply with these standards.
+
+The goal is:
+
+* Maintainability
+* Scalability
+* Security
+* Performance
+* Production-readiness
+
+The application is intended for real warehouse operations and must not be treated as a demo project.
+
+---
+
+# Technology Stack
+
+Required stack:
+
+* Next.js (latest stable)
+* React (latest stable)
+* TypeScript
+* TailwindCSS
+* Supabase
+* Vercel
+
+Preferred supporting libraries:
+
+* React Hook Form
+* Zod
+* TanStack Query
+* Supabase Realtime
+* dnd-kit (if drag-and-drop is implemented)
+* Recharts (for analytics)
+
+---
+
+# TypeScript Standards
+
+TypeScript strict mode is mandatory.
+
+Requirements:
+
+* strict: true
+* noImplicitAny: true
+
+Rules:
+
+* Never use `any`
+* Prefer explicit types
+* Prefer interfaces and reusable types
+* Create shared types when possible
+
+Bad:
+
+```ts
+const user: any
+```
+
+Good:
+
+```ts
+interface User {
+  id: string
+  name: string
+}
+```
+
+---
+
+# Next.js Standards
+
+Use:
+
+App Router
+
+Requirements:
+
+* Server Components by default
+* Client Components only when necessary
+* Route Groups
+* Loading States
+* Error Boundaries
+* Not Found Pages
+
+Required files:
+
+* loading.tsx
+* error.tsx
+* not-found.tsx
+
+for major routes.
+
+---
+
+# Server Components First
+
+Default rule:
+
+Server Component
+
+Only use:
+
+"use client"
+
+when required.
+
+Examples:
+
+Allowed:
+
+* forms
+* drag and drop
+* realtime interactions
+
+Avoid:
+
+Making entire pages client components unnecessarily.
+
+---
+
+# Folder Structure
+
+Required structure:
+
+/src
+
+/app
+/components
+/features
+/lib
+/hooks
+/server
+/types
+/styles
+
+---
+
+# Feature-Based Architecture
+
+Business logic must be organized by feature.
+
+Examples:
+
+/features/planning
+
+/features/rotation
+
+/features/history
+
+/features/templates
+
+/features/assignments
+
+---
+
+# Separation of Concerns
+
+Do not place business logic inside UI components.
+
+Bad:
+
+Component calculates rotation.
+
+Good:
+
+Rotation logic lives inside:
+
+/features/rotation
+
+UI only renders results.
+
+---
+
+# Supabase Standards
+
+Use:
+
+* Supabase Auth
+* PostgreSQL
+* Realtime
+* RLS
+
+Never expose:
+
+SUPABASE_SERVICE_ROLE_KEY
+
+to the browser.
+
+---
+
+# Environment Variables
+
+Examples:
+
+Allowed:
+
+NEXT_PUBLIC_SUPABASE_URL
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+Server Only:
+
+SUPABASE_SERVICE_ROLE_KEY
+
+Never expose server secrets to the client.
+
+---
+
+# Database Access Standards
+
+Prefer:
+
+Server Actions
+
+or
+
+Server-Side API routes
+
+for sensitive operations.
+
+Do not trust browser input.
+
+Validate everything server-side.
+
+---
+
+# Validation Standards
+
+Use:
+
+Zod
+
+for:
+
+* Forms
+* API Requests
+* Server Actions
+
+All user input must be validated.
+
+---
+
+# Reusability Standards
+
+Avoid duplicate code.
+
+Create reusable:
+
+* Components
+* Hooks
+* Utilities
+* Types
+
+before duplicating logic.
+
+---
+
+# Naming Standards
+
+Use clear names.
+
+Examples:
+
+Good:
+
+generateOutboundPlan()
+
+calculateRotationScore()
+
+switchAssignments()
+
+Bad:
+
+gen()
+
+handleStuff()
+
+dataFunction()
+
+---
+
+# Documentation Standards
+
+Document:
+
+* Complex business rules
+* Rotation calculations
+* Planning logic
+* Assignment switching logic
+
+Avoid unnecessary comments.
+
+Comments should explain:
+
+WHY
+
+not
+
+WHAT
+
+the code does.

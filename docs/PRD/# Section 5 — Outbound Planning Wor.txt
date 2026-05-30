@@ -1,0 +1,272 @@
+# Section 5 — Outbound Planning Workflow
+
+## Purpose
+
+The Outbound Planning Workflow is responsible for helping outbound leaders create, modify, publish, and manage daily labor assignments.
+
+The workflow must minimize planning time while maintaining operational flexibility.
+
+---
+
+# Step 1 — Login
+
+Leader logs into ShiftFlow.
+
+Example:
+
+Maria
+Outbound Leader
+
+The system verifies:
+
+* Authentication
+* Role
+* Department permissions
+
+---
+
+# Step 2 — Select Key
+
+Leader selects:
+
+* Key 1
+* Key 2
+* Key 3
+
+The system loads:
+
+* Outbound associates
+* Outbound templates
+* Rotation history
+* Available tasks
+* Available equipment
+
+for the selected key.
+
+---
+
+# Step 3 — Morning Setup Wizard
+
+The system asks only for exceptions.
+
+### Call-Offs
+
+Question:
+
+Any call-offs today?
+
+Leader selects affected associates.
+
+Call-off associates are removed from planning calculations.
+
+---
+
+### Overtime
+
+Question:
+
+Any overtime support today?
+
+If yes:
+
+Leader selects or adds associates.
+
+For each overtime associate:
+
+* Associate
+* Task
+* Equipment
+* Notes
+
+must be captured.
+
+---
+
+### Middle Mile
+
+Question:
+
+Who will handle Middle Mile today?
+
+Options:
+
+* Outbound
+* Inbound
+
+If Outbound:
+
+Leader assigns associates.
+
+If Inbound:
+
+Outbound plan displays:
+
+"Handled by Inbound"
+
+---
+
+### ICQA Support
+
+Question:
+
+Will Outbound support ICQA today?
+
+If yes:
+
+Leader assigns associates.
+
+These associates become unavailable for normal outbound assignments.
+
+---
+
+### Training
+
+Question:
+
+Any training assignments today?
+
+If yes:
+
+Leader creates:
+
+* Trainer
+* New Hire
+* Task
+* Equipment
+
+Training pairs are treated as active assignments.
+
+---
+
+# Step 4 — Template Selection
+
+Options:
+
+* Use Key Template
+* Use Yesterday's Plan
+* Use Custom Template
+* Create New Template
+
+Templates should significantly reduce planning time.
+
+---
+
+# Step 5 — Auto-Generate Plan
+
+The system generates assignments using:
+
+* Available associates
+* Key
+* Department
+* Templates
+* Equipment certifications
+* Planned assignment history
+* Fair rotation rules
+* Overtime
+* Special assignments
+* Call-offs
+
+The leader remains in control and may override suggestions.
+
+---
+
+# Step 6 — Review Generated Plan
+
+The generated plan is displayed using task cards.
+
+Example:
+
+CL
+John
+
+FLR
+Maria
+
+Zone 1 Loader
+Carlos
+
+Each assignment card includes:
+
+* Edit
+* Switch
+* Remove
+
+---
+
+# Step 7 — Switch Feature
+
+Leaders may switch assignments.
+
+Example:
+
+John → CL
+
+Maria → FLR
+
+Leader chooses:
+
+Switch
+
+Result:
+
+John → FLR
+
+Maria → CL
+
+System validates:
+
+* Certifications
+* Role requirements
+* Rotation warnings
+
+before applying the switch.
+
+---
+
+# Step 8 — Publish Plan
+
+Leader publishes the plan.
+
+The plan becomes visible in:
+
+* Dashboard
+* TV Mode
+* Presentation Mode
+
+Published plans become the official planned assignment history for that shift.
+
+---
+
+# Step 9 — Live Operations
+
+Throughout the day leaders may:
+
+* Move associates
+* Switch associates
+* Add assignments
+* Remove assignments
+* Start housekeeping
+* Add support assignments
+* Reallocate labor
+
+All changes are tracked in Activity History.
+
+---
+
+# Step 10 — Shift Close
+
+At the end of the shift:
+
+Leader closes the plan.
+
+The system stores:
+
+* Planned Assignment History
+* Activity History
+* Assignment timeline
+* Overtime records
+* Training records
+* Housekeeping records
+* Support records
+
+The shift becomes available for reporting and future fairness calculations.

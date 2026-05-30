@@ -1,0 +1,358 @@
+## Development Roadmap v1.0
+
+## Purpose
+
+This roadmap defines the build order for ShiftFlow DFC 5523.
+
+The project must be developed phase by phase.
+
+Claude Code, Codex, Cursor, or any AI coding agent must not attempt to build the entire application at once.
+
+Each phase must be completed, tested, and verified before moving to the next phase.
+
+---
+
+# Phase 1 — Project Foundation
+
+## Goal
+
+Create the technical foundation of the application.
+
+## Build
+
+* Next.js latest stable with App Router
+* TypeScript strict mode
+* TailwindCSS
+* ESLint
+* Prettier
+* Supabase client setup
+* Environment variable structure
+* Base folder structure
+* App layout
+* Dashboard shell
+* Sidebar navigation
+* Header navigation
+* Loading states
+* Error states
+* Empty states
+
+## Routes
+
+* `/login`
+* `/dashboard`
+* `/settings`
+
+## Done When
+
+* App runs with `npm run dev`
+* App builds with `npm run build`
+* No TypeScript errors
+* No `any`
+* Layout is responsive
+* Vercel-compatible setup exists
+
+---
+
+# Phase 2 — Authentication & Roles
+
+## Goal
+
+Add secure login and role-based access.
+
+## Build
+
+* Supabase Auth
+* Login page
+* Protected routes
+* User profiles
+* Roles:
+
+  * Admin
+  * Supervisor
+  * Inbound Leader
+  * Outbound Leader
+  * Viewer
+* Middleware route protection
+* Role-based navigation
+* Basic RLS policies
+
+## Done When
+
+* Users can log in
+* Unauthorized users cannot access protected pages
+* Role controls work
+* RLS is enabled
+* No private keys are exposed
+
+---
+
+# Phase 3 — Configuration Modules
+
+## Goal
+
+Allow supervisors/admins to configure operational data.
+
+## Build
+
+* Associates management
+* Task management
+* Equipment management
+* Dock door management
+* Department management
+* Shift key management
+* Active/inactive records
+* Search and filters
+* Create/edit forms
+* Confirmation modals
+
+## Routes
+
+* `/associates`
+* `/tasks`
+* `/equipment`
+* `/dock-doors`
+* `/settings`
+
+## Done When
+
+* No tasks/equipment/dock doors are hardcoded
+* Supervisors can add future tasks like TT
+* Supervisors can add future equipment
+* Associates can be activated/inactivated
+* Data is stored in Supabase
+
+---
+
+# Phase 4 — Templates
+
+## Goal
+
+Allow leaders to create reusable planning templates.
+
+## Build
+
+* Plan templates
+* Template items
+* Inbound templates
+* Outbound templates
+* Key-specific templates
+* Create template
+* Edit template
+* Duplicate template
+* Archive template
+
+## Done When
+
+* Leaders do not need to build plans from zero
+* Templates are separated by department and key
+* Templates use configurable tasks/equipment/dock doors
+
+---
+
+# Phase 5 — Outbound Planning
+
+## Goal
+
+Build the outbound plan creation workflow.
+
+## Build
+
+* Department/key selection
+* Duplicate plan warning
+* Morning setup wizard
+* Call-offs
+* Overtime
+* Middle Mile ownership
+* ICQA support
+* Training/new hire assignments
+* Auto-generate outbound plan
+* Review board
+* Edit assignment
+* Switch assignment
+* Remove assignment
+* Publish plan
+* Activity logging
+
+## Done When
+
+* Outbound leader can create a full outbound plan
+* Plan uses Key 1/2/3
+* Call-offs remove associates from plan
+* Overtime associates can be added with tasks
+* Switch feature works
+* Published plan creates Planned Assignment History
+
+---
+
+# Phase 6 — Inbound Planning
+
+## Goal
+
+Build the inbound plan creation workflow.
+
+## Build
+
+* Department/key selection
+* Duplicate plan warning
+* Morning setup wizard
+* Call-offs
+* Overtime
+* Middle Mile ownership
+* Support Outbound
+* Training/new hire assignments
+* Active dock door selection
+* Auto-generate inbound plan
+* Dock-door board
+* Put Away assignments
+* Available Pool
+* Trailer completion flow
+* Reassignment flow
+* Switch assignment
+* Publish plan
+* Activity logging
+
+## Done When
+
+* Inbound leader can create a full inbound plan
+* Active dock doors are selectable
+* Trailer completion moves associate to Available Pool
+* Associates can be reassigned live
+* Published plan creates Planned Assignment History
+
+---
+
+# Phase 7 — Fair Rotation Recommendation Engine
+
+## Goal
+
+Add fair planning intelligence.
+
+## Build
+
+* Planned Assignment History lookup
+* Rotation recommendations
+* Assignment frequency calculation
+* Rotation notices
+* Leader override flow
+* Rotation score
+* Auto-plan improvements
+
+## Rules
+
+* Use Planned Assignment History for fairness
+* Do not use Activity History as primary fairness source
+* Never block the leader
+* Warn and recommend only
+* Leadership can assign anyway
+
+## Done When
+
+* System warns if someone recently performed the same planned task
+* System recommends better alternatives
+* Leader can override recommendation
+* Auto-plan tries to rotate people fairly
+
+---
+
+# Phase 8 — TV Mode & Presentation Mode
+
+## Goal
+
+Replace Excel screenshots and whiteboard visibility.
+
+## Build
+
+* `/tv`
+* Outbound TV view
+* Inbound TV view
+* Full view
+* Toggle between Outbound / Inbound / Full View
+* Presentation mode
+* Realtime updates
+* Announcement banner
+* Large TV-friendly layout
+
+## Done When
+
+* Published plans appear on TV
+* Leaders can switch TV view
+* Assignment changes update automatically
+* TV mode is read-only
+* Layout is readable from distance
+
+---
+
+# Phase 9 — History, Reporting & Analytics
+
+## Goal
+
+Allow leaders to review associate history and plan history.
+
+## Build
+
+* Planned Assignment History view
+* Activity History view
+* Associate timeline
+* Department filters
+* Key filters
+* Date range filters
+* Task filters
+* Equipment filters
+* Team distribution reports
+* Rotation analytics
+
+## Done When
+
+* Leader can select John and see what he did
+* Leader can view all associates
+* History separates Inbound and Outbound
+* History separates Key 1, Key 2, Key 3
+* Planned History and Activity History are separate
+
+---
+
+# Phase 10 — Production Hardening
+
+## Goal
+
+Prepare the application for real deployment.
+
+## Build
+
+* Final RLS review
+* Audit log verification
+* Performance review
+* Security review
+* Error boundaries
+* Loading skeletons
+* Empty states
+* Mobile testing
+* Tablet testing
+* TV testing
+* Vercel production setup
+* Environment variable review
+* Build verification
+
+## Done When
+
+* `npm run lint` passes
+* `npm run build` passes
+* RLS is verified
+* Role permissions are verified
+* No service role key is exposed
+* App works on desktop, mobile, tablet, and TV
+* Production deployment is ready
+
+---
+
+# Build Rule
+
+Do not skip phases.
+
+Do not build future phases before the current phase is stable.
+
+Do not create placeholder implementations.
+
+Do not hardcode operational values.
+
+Every phase must produce production-quality code.

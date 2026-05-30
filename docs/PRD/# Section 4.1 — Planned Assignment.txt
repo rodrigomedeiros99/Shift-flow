@@ -1,0 +1,128 @@
+# Section 4.1 — Planned Assignment History vs Activity History
+
+## Overview
+
+ShiftFlow shall maintain two separate historical records:
+
+### Planned Assignment History
+
+Represents the original assignment generated or approved by the leader during plan creation.
+
+Examples:
+
+Monday:
+
+* John → CL
+* Maria → FLR
+* Carlos → Zone 1 Loader
+
+Tuesday:
+
+* John → FLR
+* Maria → OBL
+* Carlos → CL
+
+This history represents leadership planning decisions.
+
+---
+
+### Activity History
+
+Represents what actually occurred throughout the day.
+
+Examples:
+
+Monday:
+
+8:00 AM
+John → CL
+
+11:30 AM
+John → Zone 1 Loader
+
+2:00 PM
+John → Housekeeping
+
+4:00 PM
+John → Support ICQA
+
+All operational changes must be recorded.
+
+---
+
+## Fair Rotation Engine Rules
+
+The Fair Rotation Engine must primarily use:
+
+* Planned Assignment History
+
+The Fair Rotation Engine should NOT use temporary reassignment history as the primary source for rotation decisions.
+
+Example:
+
+Monday:
+John planned assignment = CL
+
+During the day:
+John moved to Loader
+
+Tuesday:
+The system should consider:
+
+"John worked CL yesterday."
+
+not:
+
+"John worked Loader yesterday."
+
+because Loader was only a temporary operational reassignment.
+
+---
+
+## Reporting
+
+Leaders should be able to view:
+
+### Planned History
+
+Used for:
+
+* Rotation analysis
+* Workforce balancing
+* Planning trends
+
+### Activity History
+
+Used for:
+
+* Operational analysis
+* Labor movement tracking
+* Productivity analysis
+* Historical audits
+
+---
+
+## Assignment Timeline
+
+Every associate shall have a timeline view.
+
+Example:
+
+John
+
+08:00 AM → CL
+11:30 AM → Zone 1 Loader
+02:00 PM → Housekeeping
+04:00 PM → ICQA Support
+
+This timeline must be preserved permanently unless company retention rules require archiving.
+
+---
+
+## Operational Philosophy
+
+Plans represent leadership intent.
+
+Activities represent operational reality.
+
+ShiftFlow must preserve both.

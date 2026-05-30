@@ -1,0 +1,289 @@
+# Section 8 — TV Display & Presentation Mode
+
+## Purpose
+
+TV Mode exists to provide clear operational visibility for:
+
+* Morning meetings
+* Shift huddles
+* Daily labor planning reviews
+* Live floor visibility
+
+The TV display must be optimized for warehouse environments and long viewing distances.
+
+---
+
+# Design Principles
+
+TV Mode must be:
+
+* Readable from a distance
+* High contrast
+* Fast updating
+* Simple
+* Professional
+
+Avoid:
+
+* Small text
+* Dense tables
+* Excessive menus
+* Complex interactions
+
+---
+
+# TV Mode is Read Only
+
+TV displays shall never allow:
+
+* Editing
+* Assignment changes
+* Plan creation
+* Administrative actions
+
+TV Mode is for viewing only.
+
+---
+
+# Morning Meeting Workflow
+
+The normal meeting flow is:
+
+1. Outbound leader presents
+2. Inbound leader presents
+3. General announcements
+
+The TV display must support this workflow.
+
+---
+
+# Display Modes
+
+## Outbound View
+
+Shows only outbound assignments.
+
+Examples:
+
+* CL
+* FLR
+* OBL
+* PA/TL
+* Tile Overbox
+* Oblong Overbox
+* Zone 1 Loader
+* Zone 2 Loader
+* Zone 3 Loader
+* All Zone Pacer Loader
+* Housekeeping
+
+---
+
+## Inbound View
+
+Shows only inbound assignments.
+
+Examples:
+
+* Unload
+* Put Away
+* Middle Mile
+* Support Outbound
+* Housekeeping
+* Active Dock Doors
+
+---
+
+## Full View
+
+Shows:
+
+* Outbound
+* Inbound
+
+simultaneously.
+
+Useful outside meetings.
+
+---
+
+# Toggle System
+
+Authorized leaders can switch:
+
+* Outbound
+* Inbound
+* Full View
+
+instantly.
+
+The TV should update without page refresh.
+
+---
+
+# Presentation Control
+
+The leader dashboard should include:
+
+Show on TV:
+
+* Outbound
+* Inbound
+* Full View
+
+Selecting a mode updates all connected TVs.
+
+---
+
+# Outbound TV Layout
+
+Example:
+
+CL
+John
+
+FLR
+Maria
+
+Zone 1 Loader
+Carlos
+
+Tile Overbox
+Ana
+
+Housekeeping
+Mike
+
+The layout should use large cards.
+
+---
+
+# Inbound TV Layout
+
+Example:
+
+Door 635
+John
+Unload
+Clamp
+
+Door 622
+Maria
+Unload
+Pacer
+
+Put Away
+Carlos
+
+Middle Mile
+Alex
+
+Support Outbound
+Ana
+
+---
+
+# Active Status Indicators
+
+Assignments should display status:
+
+* Assigned
+* Active
+* Available
+* Break
+* Lunch
+* Training
+* Overtime
+* Completed
+
+Status indicators should use color coding.
+
+---
+
+# Available Pool Visibility
+
+Optional panel:
+
+Available Associates
+
+Example:
+
+* John
+* Maria
+* Carlos
+
+This provides leaders and associates visibility into available labor.
+
+---
+
+# Real-Time Updates
+
+All published plans must update automatically.
+
+Examples:
+
+* Switch assignment
+* Move associate
+* Add assignment
+* Remove assignment
+* Start housekeeping
+
+Changes should appear on TV within seconds.
+
+---
+
+# Announcement Banner
+
+Leaders may publish announcements.
+
+Examples:
+
+Safety Walk at 9:00 AM
+
+Dock Door 635 Delayed
+
+Training Session at 1:00 PM
+
+Announcements appear in a dedicated banner area.
+
+---
+
+# Meeting Mode
+
+Dedicated fullscreen presentation mode.
+
+Features:
+
+* Larger text
+* Larger cards
+* Minimal UI
+* No navigation menus
+
+Optimized for daily huddles.
+
+---
+
+# TV Design Requirements
+
+Use:
+
+* Home Depot orange accent color
+* Dark background
+* Large typography
+* Large spacing
+* High contrast
+
+Must remain readable from warehouse viewing distances.
+
+---
+
+# Operational Principle
+
+TV Mode exists to improve communication.
+
+It should become the primary replacement for:
+
+* Printed plans
+* Screenshots
+* Whiteboards
+* Spreadsheet projections

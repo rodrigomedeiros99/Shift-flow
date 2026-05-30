@@ -1,0 +1,111 @@
+Database Schema v1.0 — Part 1
+facilities
+
+Future-proofing.
+
+facilities
+Column	Type
+id	uuid
+name	text
+code	text
+active	boolean
+created_at	timestamptz
+
+Example:
+
+Home Depot DFC 5523
+departments
+departments
+Column	Type
+id	uuid
+facility_id	uuid
+name	text
+active	boolean
+created_at	timestamptz
+
+Examples:
+
+Inbound
+Outbound
+ICQA
+Transportation
+Support
+shift_keys
+shift_keys
+Column	Type
+id	uuid
+facility_id	uuid
+name	text
+start_time	time
+end_time	time
+days_of_week	text
+active	boolean
+
+Examples:
+
+Key 1
+Key 2
+Key 3
+equipment_types
+equipment_types
+Column	Type
+id	uuid
+facility_id	uuid
+name	text
+certification_required	boolean
+active	boolean
+
+Examples:
+
+Clamp
+Pacer
+EPJ
+Forklift
+associates
+
+This is one of the most important tables.
+
+associates
+Column	Type
+id	uuid
+facility_id	uuid
+first_name	text
+last_name	text
+employee_id	text
+department_id	uuid
+default_key_id	uuid
+active	boolean
+notes	text
+created_at	timestamptz
+
+Example:
+
+John Smith
+Outbound
+Key 1
+associate_certifications
+
+Many-to-many relationship.
+
+One associate can have many certifications.
+
+associate_certifications
+Column	Type
+id	uuid
+associate_id	uuid
+equipment_id	uuid
+certified	boolean
+certified_at	timestamptz
+Why this structure?
+
+Because later:
+
+John
+
+can have:
+
+Clamp
+Pacer
+EPJ
+
+all attached without adding extra columns.

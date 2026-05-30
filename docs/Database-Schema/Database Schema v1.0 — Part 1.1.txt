@@ -1,0 +1,112 @@
+Database Schema v1.0
+
+Everything we build later will depend on this.
+
+A bad schema creates:
+
+slow queries
+duplicated data
+difficult reporting
+broken fairness logic
+maintenance headaches
+
+A good schema makes everything easier.
+
+Database Design Philosophy
+
+Before we create tables, let's establish some rules.
+
+Rule 1
+
+Never store the same information twice unless there is a business reason.
+
+Rule 2
+
+Keep history forever.
+
+Never delete:
+
+associates
+assignments
+plans
+
+Use:
+
+active
+inactive
+
+instead.
+
+Rule 3
+
+Separate:
+
+Planned Assignment History
+
+from:
+
+Activity History
+
+This is one of the biggest architectural decisions in ShiftFlow.
+
+Rule 4
+
+Everything must be configurable.
+
+Examples:
+
+Tasks
+Equipment
+Departments
+Dock Doors
+Templates
+
+No hardcoded warehouse values.
+
+Rule 5
+
+Design for future DFCs.
+
+Today:
+
+DFC 5523
+
+Tomorrow:
+
+DFC 5523
+DFC 1234
+DFC 7890
+
+The schema should support this.
+
+Database Structure Overview
+
+I propose we organize the database into 8 areas:
+
+1. Security
+profiles
+roles
+user_roles
+2. Organization
+facilities
+departments
+shift_keys
+3. Workforce
+associates
+associate_certifications
+equipment_types
+4. Operations
+task_types
+dock_doors
+5. Planning
+daily_plans
+assignments
+assignment_switches
+6. History
+planned_assignment_history
+activity_history
+7. Templates
+plan_templates
+template_items
+8. Auditing
+audit_logs
