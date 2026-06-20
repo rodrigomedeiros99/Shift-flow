@@ -11,6 +11,7 @@
 
 import type { UserRole } from '@/lib/constants/roles';
 import type {
+  AbsenceType,
   ActivityAction,
   AssignmentStatus,
   AssignmentType,
@@ -52,6 +53,8 @@ export interface ShiftKey {
   startTime: string;
   endTime: string;
   daysOfWeek: string;
+  /** Productive hours for the UPH calculator, or null until configured. */
+  productiveHours: number | null;
   active: boolean;
 }
 
@@ -94,6 +97,12 @@ export interface TaskType {
   departmentId: UUID;
   name: string;
   defaultEquipmentId: UUID | null;
+  /** Inbound: staffed per active dock door (one position per door), not by count. */
+  needsDockDoor: boolean;
+  /** Whether the UPH labor calculator applies to this task. */
+  usesUph: boolean;
+  /** Configured Units Per Hour, or null until a supervisor sets it. */
+  avgUnitsPerHour: number | null;
   active: boolean;
   sortOrder: number;
   createdAt: ISODateTime;
@@ -184,6 +193,7 @@ export interface CallOff {
   id: UUID;
   dailyPlanId: UUID;
   associateId: UUID;
+  type: AbsenceType;
   reason: string | null;
   createdAt: ISODateTime;
 }
@@ -193,6 +203,8 @@ export interface PlanDockDoor {
   id: UUID;
   dailyPlanId: UUID;
   dockDoorId: UUID;
+  /** Equipment chosen for this door today (optional; changes daily). */
+  equipmentId: UUID | null;
   createdAt: ISODateTime;
 }
 
@@ -248,5 +260,35 @@ export interface Profile {
   facilityId: UUID;
   departmentId: UUID | null;
   active: boolean;
+  createdAt: ISODateTime;
+}
+
+// --- Notifications ----------------------------------------------------------
+
+/** Operational notification categories (Phase 1 of the Notification Center). */
+export type NotificationType =
+  | 'plan_published'
+  | 'draft_exists'
+  | 'staffing_warning'
+  | 'rotation_alert'
+  | 'uph_warning';
+
+/** Visual/urgency tier for a notification. */
+export type NotificationSeverity = 'info' | 'warning' | 'critical';
+
+export interface Notification {
+  id: UUID;
+  facilityId: UUID;
+  /** Recipient; null is reserved for a future facility/role broadcast. */
+  userId: UUID | null;
+  type: NotificationType;
+  severity: NotificationSeverity;
+  title: string;
+  message: string;
+  /** Route to open when the notification is clicked. */
+  link: string | null;
+  dailyPlanId: UUID | null;
+  isRead: boolean;
+  readAt: ISODateTime | null;
   createdAt: ISODateTime;
 }

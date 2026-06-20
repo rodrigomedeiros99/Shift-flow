@@ -164,7 +164,12 @@ export async function createTask(
     facility_id: profile.facilityId,
     department_id: parsed.data.departmentId,
     name: parsed.data.name,
-    default_equipment_id: parsed.data.defaultEquipmentId,
+    default_equipment_id: parsed.data.defaultEquipmentId || null,
+    needs_dock_door: parsed.data.needsDockDoor,
+    uses_uph: parsed.data.usesUph,
+    avg_units_per_hour: parsed.data.avgUnitsPerHour
+      ? Number(parsed.data.avgUnitsPerHour)
+      : null,
     sort_order: parsed.data.sortOrder,
     active: parsed.data.active,
   });
@@ -188,6 +193,11 @@ export async function updateTask(
       department_id: parsed.data.departmentId,
       name: parsed.data.name,
       default_equipment_id: parsed.data.defaultEquipmentId || null,
+      needs_dock_door: parsed.data.needsDockDoor,
+      uses_uph: parsed.data.usesUph,
+      avg_units_per_hour: parsed.data.avgUnitsPerHour
+        ? Number(parsed.data.avgUnitsPerHour)
+        : null,
       sort_order: parsed.data.sortOrder,
       active: parsed.data.active,
     })
@@ -288,6 +298,9 @@ export async function createShiftKey(
     start_time: parsed.data.startTime,
     end_time: parsed.data.endTime,
     days_of_week: parsed.data.daysOfWeek,
+    productive_hours: parsed.data.productiveHours
+      ? Number(parsed.data.productiveHours)
+      : null,
     active: parsed.data.active,
   });
   if (error) return dbError(error);
@@ -311,6 +324,9 @@ export async function updateShiftKey(
       start_time: parsed.data.startTime,
       end_time: parsed.data.endTime,
       days_of_week: parsed.data.daysOfWeek,
+      productive_hours: parsed.data.productiveHours
+        ? Number(parsed.data.productiveHours)
+        : null,
       active: parsed.data.active,
     })
     .eq('id', id);
@@ -436,5 +452,81 @@ export async function setAssociateActive(
     .eq('id', id);
   if (error) return dbError(error);
   revalidatePath('/associates');
+  return ok;
+}
+
+// --- Delete (with history protection) ---------------------------------------
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/** True if any of the (table, column) references the id — i.e. it has history. */
+async function hasReferences(
+  supabase: Supabase,
+  id: string,
+  refs: { table: string; column: string }[],
+): Promise<boolean> {
+  for (const ref of refs) {
+    const { count } = await supabase
+      .from(ref.table)
+      .select('id', { count: 'exact', head: true })
+      .eq(ref.column, id);
+    if ((count ?? 0) > 0) return true;
+  }
+  return false;
+}
+
+const HISTORY_MSG =
+  'This record is used in plans or history. Deactivate it instead to preserve historical reporting.';
+
+export async function deleteAssociate(id: string): Promise<ActionResult> {
+  await requireRole(CONFIG_MANAGER_ROLES);
+  const supabase = await createClient();
+  const referenced = await hasReferences(supabase, id, [
+    { table: 'planned_assignment_history', column: 'associate_id' },
+    { table: 'assignments', column: 'associate_id' },
+    { table: 'activity_history', column: 'associate_id' },
+    { table: 'call_offs', column: 'associate_id' },
+    { table: 'special_assignments', column: 'associate_id' },
+  ]);
+  if (referenced) return fail(HISTORY_MSG);
+  const { error } = await supabase.from('associates').delete().eq('id', id);
+  if (error) return dbError(error);
+  revalidatePath('/associates');
+  return ok;
+}
+
+export async function deleteTask(id: string): Promise<ActionResult> {
+  await requireRole(CONFIG_MANAGER_ROLES);
+  const supabase = await createClient();
+  const referenced = await hasReferences(supabase, id, [
+    { table: 'planned_assignment_history', column: 'task_type_id' },
+    { table: 'assignments', column: 'task_type_id' },
+    { table: 'template_items', column: 'task_type_id' },
+    { table: 'plan_staffing_needs', column: 'task_type_id' },
+    { table: 'special_assignments', column: 'task_type_id' },
+  ]);
+  if (referenced) return fail(HISTORY_MSG);
+  const { error } = await supabase.from('task_types').delete().eq('id', id);
+  if (error) return dbError(error);
+  revalidatePath('/tasks');
+  return ok;
+}
+
+export async function deleteEquipment(id: string): Promise<ActionResult> {
+  await requireRole(CONFIG_MANAGER_ROLES);
+  const supabase = await createClient();
+  const referenced = await hasReferences(supabase, id, [
+    { table: 'planned_assignment_history', column: 'equipment_id' },
+    { table: 'assignments', column: 'equipment_id' },
+    { table: 'associate_certifications', column: 'equipment_id' },
+    { table: 'template_items', column: 'default_equipment_id' },
+  ]);
+  if (referenced) return fail(HISTORY_MSG);
+  const { error } = await supabase
+    .from('equipment_types')
+    .delete()
+    .eq('id', id);
+  if (error) return dbError(error);
+  revalidatePath('/equipment');
   return ok;
 }

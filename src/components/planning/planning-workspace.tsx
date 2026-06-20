@@ -7,10 +7,17 @@ import { CheckCircle2 } from 'lucide-react';
 import { Button, ConfirmDialog, Select, useToast } from '@/components/ui';
 import { MorningSetup } from './morning-setup';
 import { DockDoorSelection } from './dock-door-selection';
+import { StaffingNeedsForm } from './staffing-needs-form';
+import { DraftDeleteButton } from './draft-delete-button';
 import { GeneratePanel } from './generate-panel';
 import { ReviewBoard } from './review-board';
 import { publishPlan } from '@/features/planning/actions';
-import type { PlanInputs } from '@/features/planning/queries';
+import type {
+  PlanDockDoorRow,
+  PlanInputs,
+  StaffingNeed,
+  UphCalculation,
+} from '@/features/planning/queries';
 import type { RotationRecord } from '@/features/planning/rotation';
 import type {
   Assignment,
@@ -27,18 +34,25 @@ interface PlanningWorkspaceProps {
   assignments: Assignment[];
   callOffs: CallOff[];
   specials: SpecialAssignment[];
-  /** Dock doors marked active for this plan (inbound). */
-  activeDoorIds: string[];
+  /** Dock doors marked active for this plan, with per-day equipment (inbound). */
+  activeDoors: PlanDockDoorRow[];
+  /** People-per-task demand entered for this plan (v2). */
+  staffingNeeds: StaffingNeed[];
+  /** Saved UPH calculation snapshot for this plan. */
+  uphCalculations: UphCalculation[];
+  /** Productive hours of the plan's shift key, or null if not configured. */
+  shiftHours: number | null;
   /** Planned-history rows for fair-rotation notices/score (Phase 7). */
   rotationRecords: RotationRecord[];
 }
 
-/** Rotation lookback windows (PRD §7); default = previous day. */
+/** Rotation lookback windows; default = previous day. */
 const LOOKBACK_OPTIONS = [
-  { value: 1, label: 'Yesterday' },
+  { value: 1, label: 'Last day' },
+  { value: 2, label: 'Last 2 days' },
   { value: 3, label: 'Last 3 days' },
+  { value: 4, label: 'Last 4 days' },
   { value: 7, label: 'Last week' },
-  { value: 30, label: 'Last 30 days' },
 ] as const;
 
 function StepHeading({ n, title }: { n: number; title: string }) {
@@ -59,7 +73,10 @@ export function PlanningWorkspace({
   assignments,
   callOffs,
   specials,
-  activeDoorIds,
+  activeDoors,
+  staffingNeeds,
+  uphCalculations,
+  shiftHours,
   rotationRecords,
 }: PlanningWorkspaceProps) {
   const router = useRouter();
@@ -71,6 +88,21 @@ export function PlanningWorkspace({
   const published = plan.status !== 'draft';
   const isInbound = deptKind === 'inbound';
   const boardGroupBy = isInbound ? 'door' : 'task';
+  const totalNeeded =
+    staffingNeeds.reduce((sum, n) => sum + n.peopleNeeded, 0) +
+    (isInbound ? activeDoors.length : 0);
+
+  // Available = eligible associates minus absences (call-off/vacation/STO) and
+  // anyone committed to a special assignment (overtime/training/middle-mile/…).
+  const availableCount = (() => {
+    const used = new Set<string>();
+    for (const c of callOffs) used.add(c.associateId);
+    for (const s of specials) {
+      used.add(s.associateId);
+      if (s.relatedAssociateId) used.add(s.relatedAssociateId);
+    }
+    return inputs.associates.filter((a) => !used.has(a.id)).length;
+  })();
 
   async function confirmPublish() {
     setPending(true);
@@ -119,19 +151,21 @@ export function PlanningWorkspace({
           groupBy={boardGroupBy}
           rotationRecords={rotationRecords}
           planDate={plan.planDate}
+          totalNeeded={totalNeeded}
           readOnly
         />
       </div>
     );
   }
 
-  // Inbound inserts a "Dock doors" step between setup and generate, shifting
-  // the later step numbers by one.
-  const generateStep = isInbound ? 3 : 2;
-  const reviewStep = isInbound ? 4 : 3;
+  const activeTasks = inputs.tasks.filter((t) => t.active);
 
   return (
     <div className="space-y-10">
+      <div className="flex justify-end">
+        <DraftDeleteButton planId={plan.id} redirectTo="/create-plan" />
+      </div>
+
       <div className="border-border bg-surface-raised/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3">
         <div>
           <p className="text-foreground text-sm font-medium">Fair rotation</p>
@@ -157,7 +191,28 @@ export function PlanningWorkspace({
       </div>
 
       <section className="space-y-4">
-        <StepHeading n={1} title="Morning setup" />
+        <StepHeading n={1} title="Staffing needs" />
+        <StaffingNeedsForm
+          planId={plan.id}
+          tasks={activeTasks}
+          needs={staffingNeeds}
+          uphCalculations={uphCalculations}
+          shiftHours={shiftHours}
+          isInbound={isInbound}
+          availableCount={availableCount}
+        />
+      </section>
+
+      <section className="space-y-4">
+        <StepHeading n={2} title="Support &amp; exceptions" />
+        {isInbound ? (
+          <DockDoorSelection
+            planId={plan.id}
+            dockDoors={inputs.dockDoors}
+            equipment={inputs.equipment}
+            activeDoors={activeDoors}
+          />
+        ) : null}
         <MorningSetup
           planId={plan.id}
           deptKind={deptKind}
@@ -170,28 +225,13 @@ export function PlanningWorkspace({
         />
       </section>
 
-      {isInbound ? (
-        <section className="space-y-4">
-          <StepHeading n={2} title="Dock doors" />
-          <DockDoorSelection
-            planId={plan.id}
-            dockDoors={inputs.dockDoors}
-            activeDoorIds={activeDoorIds}
-          />
-        </section>
-      ) : null}
-
       <section className="space-y-4">
-        <StepHeading n={generateStep} title="Generate" />
-        <GeneratePanel
-          planId={plan.id}
-          templates={inputs.templates}
-          lookbackDays={lookbackDays}
-        />
+        <StepHeading n={3} title="Auto generate plan" />
+        <GeneratePanel planId={plan.id} lookbackDays={lookbackDays} />
       </section>
 
       <section className="space-y-4">
-        <StepHeading n={reviewStep} title="Review &amp; publish" />
+        <StepHeading n={4} title="Review &amp; publish" />
         <ReviewBoard
           planId={plan.id}
           assignments={assignments}
@@ -203,8 +243,10 @@ export function PlanningWorkspace({
           specials={specials}
           groupBy={boardGroupBy}
           rotationRecords={rotationRecords}
+          certificationsByAssociate={inputs.certificationsByAssociate}
           planDate={plan.planDate}
           lookbackDays={lookbackDays}
+          totalNeeded={totalNeeded}
         />
         <div className="flex justify-end">
           <Button onClick={() => setConfirming(true)} disabled={pending}>

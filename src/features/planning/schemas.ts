@@ -46,11 +46,47 @@ export const trainingPairSchema = z.object({
 });
 export type TrainingPairValues = z.infer<typeof trainingPairSchema>;
 
-/** Step 4 (inbound) — which dock doors are active for the plan today. */
+/**
+ * Step 4 (inbound) — which dock doors are active today, each with the optional
+ * equipment chosen for it (equipment changes daily, so it's per plan).
+ */
 export const activeDoorsSchema = z.object({
-  doorIds: z.array(z.string().uuid()),
+  doors: z.array(
+    z.object({
+      dockDoorId: z.string().uuid(),
+      equipmentId: optionalUuid,
+    }),
+  ),
 });
 export type ActiveDoorsValues = z.infer<typeof activeDoorsSchema>;
+
+/** Staffing needs — people required per task (v2 replaces templates). */
+export const staffingNeedsSchema = z.object({
+  rows: z.array(
+    z.object({
+      taskTypeId: z.string().uuid(),
+      peopleNeeded: z.number().int().min(0).max(999),
+    }),
+  ),
+  /**
+   * UPH calculation snapshot per task (recommendation tool). Stored separately
+   * from `rows` so old plans keep the UPH that was used when they were created.
+   */
+  uph: z
+    .array(
+      z.object({
+        taskTypeId: z.string().uuid(),
+        unitsPlanned: z.number().int().min(0).max(1_000_000),
+        uphUsed: z.number().positive().nullable(),
+        shiftHoursUsed: z.number().positive().nullable(),
+        recommendedPeople: z.number().int().min(0).max(9999).nullable(),
+        finalPeople: z.number().int().min(0).max(999),
+      }),
+    )
+    .optional()
+    .default([]),
+});
+export type StaffingNeedsValues = z.infer<typeof staffingNeedsSchema>;
 
 /** Edit / add a board assignment. */
 export const assignmentEditSchema = z.object({

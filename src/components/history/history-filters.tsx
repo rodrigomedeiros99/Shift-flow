@@ -41,6 +41,7 @@ export function HistoryFilters({ options, current }: HistoryFiltersProps) {
       const params = new URLSearchParams(searchParams.toString());
       if (value) params.set(key, value);
       else params.delete(key);
+      params.delete('page'); // any filter change returns to page 1
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },

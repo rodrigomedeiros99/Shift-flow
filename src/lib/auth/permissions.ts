@@ -19,6 +19,13 @@ export const ROUTE_ACCESS: Record<string, readonly UserRole[]> = {
   '/tv': ['admin', 'supervisor', 'inbound_leader', 'outbound_leader', 'viewer'],
   '/live-plan': ['admin', 'supervisor', 'inbound_leader', 'outbound_leader'],
   '/history': ['admin', 'supervisor', 'inbound_leader', 'outbound_leader'],
+  '/notifications': [
+    'admin',
+    'supervisor',
+    'inbound_leader',
+    'outbound_leader',
+    'viewer',
+  ],
   '/associates': ['admin', 'supervisor'],
   '/tasks': ['admin', 'supervisor'],
   '/equipment': ['admin', 'supervisor'],

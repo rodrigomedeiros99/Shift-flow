@@ -22,12 +22,20 @@ import type {
   SpecialAssignment,
   TaskType,
 } from '@/types/domain';
-import type {
-  AssignmentStatus,
-  AssignmentType,
-  PlanStatus,
-  SpecialAssignmentType,
+import {
+  ABSENCE_TYPES,
+  type AbsenceType,
+  type AssignmentStatus,
+  type AssignmentType,
+  type PlanStatus,
+  type SpecialAssignmentType,
 } from '@/lib/constants/assignments';
+
+function toAbsenceType(value: string): AbsenceType {
+  return (ABSENCE_TYPES as readonly string[]).includes(value)
+    ? (value as AbsenceType)
+    : 'call_off';
+}
 
 /**
  * Read access for outbound planning (Phase 5). RLS scopes every result to the
@@ -228,6 +236,7 @@ interface CallOffRow {
   id: string;
   daily_plan_id: string;
   associate_id: string;
+  type: string;
   reason: string | null;
   created_at: string;
 }
@@ -236,13 +245,14 @@ export async function listCallOffs(planId: string): Promise<CallOff[]> {
   const supabase = await db();
   const { data, error } = await supabase
     .from('call_offs')
-    .select('id, daily_plan_id, associate_id, reason, created_at')
+    .select('id, daily_plan_id, associate_id, type, reason, created_at')
     .eq('daily_plan_id', planId);
   if (error) fail('call-offs', error.message);
   return ((data as CallOffRow[] | null) ?? []).map((r) => ({
     id: r.id,
     dailyPlanId: r.daily_plan_id,
     associateId: r.associate_id,
+    type: toAbsenceType(r.type),
     reason: r.reason,
     createdAt: r.created_at,
   }));
@@ -301,6 +311,68 @@ export async function getRotationRecords(
   }));
 }
 
+// --- Staffing needs (people per task) ---------------------------------------
+
+export interface StaffingNeed {
+  taskTypeId: string;
+  peopleNeeded: number;
+}
+
+/** People-per-task demand a supervisor entered for this plan (v2). */
+export async function listStaffingNeeds(
+  planId: string,
+): Promise<StaffingNeed[]> {
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from('plan_staffing_needs')
+    .select('task_type_id, people_needed')
+    .eq('daily_plan_id', planId);
+  if (error) fail('staffing needs', error.message);
+  return (
+    (data as { task_type_id: string; people_needed: number }[] | null) ?? []
+  ).map((r) => ({ taskTypeId: r.task_type_id, peopleNeeded: r.people_needed }));
+}
+
+/** UPH calculation snapshot saved for this plan (per task). */
+export interface UphCalculation {
+  taskTypeId: string;
+  unitsPlanned: number;
+  uphUsed: number | null;
+  shiftHoursUsed: number | null;
+  recommendedPeople: number | null;
+  finalPeople: number;
+}
+
+export async function listUphCalculations(
+  planId: string,
+): Promise<UphCalculation[]> {
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from('plan_uph_calculations')
+    .select(
+      'task_type_id, units_planned, uph_used, shift_hours_used, recommended_people, final_people',
+    )
+    .eq('daily_plan_id', planId);
+  if (error) fail('UPH calculations', error.message);
+  type Row = {
+    task_type_id: string;
+    units_planned: number;
+    uph_used: number | string | null;
+    shift_hours_used: number | string | null;
+    recommended_people: number | null;
+    final_people: number;
+  };
+  return ((data as Row[] | null) ?? []).map((r) => ({
+    taskTypeId: r.task_type_id,
+    unitsPlanned: r.units_planned,
+    uphUsed: r.uph_used === null ? null : Number(r.uph_used),
+    shiftHoursUsed:
+      r.shift_hours_used === null ? null : Number(r.shift_hours_used),
+    recommendedPeople: r.recommended_people,
+    finalPeople: r.final_people,
+  }));
+}
+
 // --- Active dock doors (inbound) --------------------------------------------
 
 /** Dock door ids the leader marked active for this plan (inbound Step 4). */
@@ -314,6 +386,27 @@ export async function listPlanDockDoors(planId: string): Promise<string[]> {
   return ((data as { dock_door_id: string }[] | null) ?? []).map(
     (r) => r.dock_door_id,
   );
+}
+
+/** Active dock door, each with the equipment chosen for it today (per plan). */
+export interface PlanDockDoorRow {
+  dockDoorId: string;
+  equipmentId: string | null;
+}
+
+export async function listPlanDockDoorRows(
+  planId: string,
+): Promise<PlanDockDoorRow[]> {
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from('plan_dock_doors')
+    .select('dock_door_id, equipment_id')
+    .eq('daily_plan_id', planId);
+  if (error) fail('active dock doors', error.message);
+  return (
+    (data as { dock_door_id: string; equipment_id: string | null }[] | null) ??
+    []
+  ).map((r) => ({ dockDoorId: r.dock_door_id, equipmentId: r.equipment_id }));
 }
 
 export async function listSpecialAssignments(

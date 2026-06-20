@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/page-header';
 import { PlanSetupForm } from '@/components/planning/plan-setup-form';
+import { DraftDeleteButton } from '@/components/planning/draft-delete-button';
 import { Badge, Card, CardContent } from '@/components/ui';
 import { requireRole, PLANNER_ROLES } from '@/features/auth/queries';
 import { listDepartments, listShiftKeys } from '@/features/config/queries';
@@ -37,27 +38,41 @@ export default async function CreatePlanPage() {
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {todayPlans.map((plan) => (
-                <Link key={plan.id} href={`/create-plan/${plan.id}`}>
-                  <Card className="hover:border-primary/50 transition-colors">
-                    <CardContent className="flex items-center justify-between">
-                      <div>
-                        <p className="text-foreground font-medium">
-                          {deptName.get(plan.departmentId) ?? '—'}
-                        </p>
-                        <p className="text-foreground-muted text-sm">
-                          {keyName.get(plan.shiftKeyId) ?? '—'}
-                        </p>
-                      </div>
+                <Card
+                  key={plan.id}
+                  className="hover:border-primary/50 transition-colors"
+                >
+                  <CardContent className="flex items-center justify-between gap-2">
+                    <Link
+                      href={`/create-plan/${plan.id}`}
+                      className="min-w-0 flex-1"
+                    >
+                      <p className="text-foreground truncate font-medium">
+                        {deptName.get(plan.departmentId) ?? '—'}
+                      </p>
+                      <p className="text-foreground-muted truncate text-sm">
+                        {keyName.get(plan.shiftKeyId) ?? '—'}
+                      </p>
+                    </Link>
+                    <div className="flex shrink-0 items-center gap-2">
                       <Badge
                         tone={
-                          plan.status === 'published' ? 'success' : 'neutral'
+                          plan.status === 'published'
+                            ? 'success'
+                            : plan.status === 'draft'
+                              ? 'warning'
+                              : 'neutral'
                         }
                       >
-                        {plan.status === 'published' ? 'Published' : 'Draft'}
+                        {plan.status.charAt(0).toUpperCase() +
+                          plan.status.slice(1)}
                       </Badge>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      {plan.status === 'draft' ? (
+                        <DraftDeleteButton planId={plan.id} />
+                      ) : null}
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </section>

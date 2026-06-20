@@ -63,6 +63,7 @@ export interface TvSpecial {
 
 export interface TvPlanView {
   planId: string;
+  status: DailyPlan['status'];
   departmentName: string;
   kind: DepartmentKind;
   shiftKeyName: string;
@@ -231,6 +232,7 @@ async function buildPlanView(
 
   return {
     planId: plan.id,
+    status: plan.status,
     departmentName: dept?.name ?? 'Plan',
     kind,
     shiftKeyName: ctx.keyName.get(plan.shiftKeyId) ?? '',

@@ -21,6 +21,7 @@ import {
 } from '@/features/config/schemas';
 import {
   createEquipment,
+  deleteEquipment,
   setEquipmentActive,
   updateEquipment,
 } from '@/features/config/actions';
@@ -39,6 +40,7 @@ export function EquipmentManager({ items }: { items: EquipmentType[] }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<EquipmentType | null>(null);
   const [toggling, setToggling] = useState<EquipmentType | null>(null);
+  const [deleting, setDeleting] = useState<EquipmentType | null>(null);
   const [pending, setPending] = useState(false);
 
   const form = useForm<EquipmentFormValues>({
@@ -99,6 +101,25 @@ export function EquipmentManager({ items }: { items: EquipmentType[] }) {
     }
   }
 
+  async function confirmDelete() {
+    if (!deleting) return;
+    setPending(true);
+    const result = await deleteEquipment(deleting.id);
+    setPending(false);
+    if (result.ok) {
+      toast({ title: 'Equipment deleted' });
+      setDeleting(null);
+      router.refresh();
+    } else {
+      toast({
+        title: 'Could not delete',
+        description: result.error,
+        variant: 'error',
+      });
+      setDeleting(null);
+    }
+  }
+
   return (
     <>
       <ConfigList
@@ -131,6 +152,7 @@ export function EquipmentManager({ items }: { items: EquipmentType[] }) {
             active={i.active}
             onEdit={() => openEdit(i)}
             onToggle={() => setToggling(i)}
+            onDelete={() => setDeleting(i)}
           />
         )}
       />
@@ -194,6 +216,17 @@ export function EquipmentManager({ items }: { items: EquipmentType[] }) {
         pending={pending}
         onConfirm={confirmToggle}
         onCancel={() => setToggling(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleting}
+        title="Delete equipment?"
+        description="This permanently removes the equipment. If it is used in any certification, plan, or history, deletion is blocked — deactivate instead to preserve historical reporting."
+        confirmLabel="Delete"
+        destructive
+        pending={pending}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
       />
     </>
   );

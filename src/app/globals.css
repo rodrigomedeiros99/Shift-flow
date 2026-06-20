@@ -4,38 +4,40 @@
  * ShiftFlow DFC 5523 — Design System tokens.
  * Ref: Engineering Standards §5 (Brand Identity, Color Palette, Status Indicators).
  *
- * These are the single source of truth for color. Components must consume the
- * generated utilities (bg-surface, text-foreground, border-border, …) rather
- * than hardcoding hex values, so a future re-theme touches only this file.
+ * Single source of truth for color. Surface/text/border tokens are theme-aware:
+ * the design tokens below reference CSS variables whose values switch between
+ * `:root` (light) and `.dark` (dark), toggled by next-themes via a class on
+ * <html>. Components consume the generated utilities (bg-surface, text-foreground,
+ * border-border, …) and never hardcode hex, so both themes follow automatically.
  */
-@theme {
-  /* Surfaces & text — dark warehouse-operations palette */
-  --color-background: #111827;
-  --color-surface: #1f2937;
-  --color-surface-raised: #273344;
-  --color-border: #374151;
-  --color-foreground: #f9fafb;
-  --color-foreground-muted: #d1d5db;
-  --color-foreground-subtle: #9ca3af;
+@theme inline {
+  /* Surfaces & text — resolved per theme (see :root / .dark below) */
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border-color);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
 
   /* Brand — Home Depot Orange. Used to guide attention, not to fill space. */
   --color-primary: #f96302;
   --color-primary-hover: #e25600;
   --color-primary-foreground: #ffffff;
 
-  /* Semantic feedback */
-  --color-success: #22c55e;
-  --color-warning: #facc15;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  /* Semantic feedback — tuned to read on both light and dark surfaces */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
 
   /* Assignment status indicators (§5 Status Indicators) */
-  --color-status-assigned: #3b82f6; /* blue */
-  --color-status-active: #22c55e; /* green */
-  --color-status-available: #06b6d4; /* cyan */
-  --color-status-break: #facc15; /* yellow */
-  --color-status-lunch: #facc15; /* yellow */
-  --color-status-training: #a855f7; /* purple */
+  --color-status-assigned: #2563eb; /* blue */
+  --color-status-active: #16a34a; /* green */
+  --color-status-available: #0891b2; /* cyan */
+  --color-status-break: #d97706; /* amber */
+  --color-status-lunch: #d97706; /* amber */
+  --color-status-training: #9333ea; /* purple */
   --color-status-overtime: #f96302; /* orange */
   --color-status-completed: #6b7280; /* gray */
 
@@ -44,16 +46,47 @@
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@layer base {
-  html {
-    color-scheme: dark;
-  }
+/* Light theme (default) — clean corporate palette */
+:root {
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --surface-raised: #eef1f4;
+  --border-color: #e2e6ea;
+  --foreground: #111827;
+  --foreground-muted: #4b5563;
+  --foreground-subtle: #6b7280;
+  color-scheme: light;
+}
 
+/* Dark theme — warehouse-operations palette */
+.dark {
+  --background: #111827;
+  --surface: #1f2937;
+  --surface-raised: #273344;
+  --border-color: #374151;
+  --foreground: #f9fafb;
+  --foreground-muted: #d1d5db;
+  --foreground-subtle: #9ca3af;
+  color-scheme: dark;
+}
+
+@layer base {
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Tailwind v4 dropped the default button cursor — restore it for every
+   * clickable element so the whole UI signals interactivity (request:
+   * GENERAL UI #2). Disabled controls keep the default arrow. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  label[for],
+  summary,
+  select {
+    cursor: pointer;
   }
 
   /* Accessibility §5: clear, consistent focus indicators */

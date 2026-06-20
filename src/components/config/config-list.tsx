@@ -27,6 +27,8 @@ interface ConfigListProps<T> {
   searchPlaceholder: string;
   emptyTitle: string;
   emptyDescription?: string;
+  /** Hide the built-in active/inactive filter (the caller filters status itself). */
+  hideStatusFilter?: boolean;
 }
 
 type StatusFilter = 'all' | 'active' | 'inactive';
@@ -48,6 +50,7 @@ export function ConfigList<T>({
   searchPlaceholder,
   emptyTitle,
   emptyDescription,
+  hideStatusFilter = false,
 }: ConfigListProps<T>) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -79,16 +82,18 @@ export function ConfigList<T>({
               aria-label="Search"
             />
           </div>
-          <Select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as StatusFilter)}
-            aria-label="Filter by status"
-            className="sm:w-40"
-          >
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </Select>
+          {hideStatusFilter ? null : (
+            <Select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as StatusFilter)}
+              aria-label="Filter by status"
+              className="sm:w-40"
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </Select>
+          )}
         </div>
         <Button onClick={onAdd} className="gap-2">
           <Plus className="h-4 w-4" aria-hidden="true" />

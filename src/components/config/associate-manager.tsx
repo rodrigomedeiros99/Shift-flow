@@ -7,6 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Badge,
   Button,
+  Card,
+  CardContent,
   Checkbox,
   ConfirmDialog,
   Input,
@@ -23,9 +25,12 @@ import {
 } from '@/features/config/schemas';
 import {
   createAssociate,
+  deleteAssociate,
   setAssociateActive,
   updateAssociate,
 } from '@/features/config/actions';
+import { Field as FilterField } from './field';
+import { DEPARTMENT_KIND_LABELS } from '@/lib/constants/departments';
 import type {
   Associate,
   Department,
@@ -53,12 +58,50 @@ export function AssociateManager({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Associate | null>(null);
   const [toggling, setToggling] = useState<Associate | null>(null);
+  const [deleting, setDeleting] = useState<Associate | null>(null);
+  const [kindFilter, setKindFilter] = useState<'all' | 'inbound' | 'outbound'>(
+    'all',
+  );
+  const [statusFilter, setStatusFilter] = useState<
+    'all' | 'active' | 'inactive'
+  >('all');
   const [pending, setPending] = useState(false);
 
   const deptName = useMemo(
     () => new Map(departments.map((d) => [d.id, d.name])),
     [departments],
   );
+  const deptKind = useMemo(
+    () => new Map(departments.map((d) => [d.id, d.kind])),
+    [departments],
+  );
+  // Scope by department kind, then by status. The counter reflects both.
+  const kindItems = useMemo(
+    () =>
+      kindFilter === 'all'
+        ? items
+        : items.filter((i) => deptKind.get(i.departmentId) === kindFilter),
+    [items, kindFilter, deptKind],
+  );
+  const filteredItems = useMemo(
+    () =>
+      statusFilter === 'all'
+        ? kindItems
+        : kindItems.filter((i) => i.active === (statusFilter === 'active')),
+    [kindItems, statusFilter],
+  );
+  const counts = useMemo(() => {
+    const active = kindItems.filter((i) => i.active).length;
+    return {
+      total: kindItems.length,
+      active,
+      inactive: kindItems.length - active,
+    };
+  }, [kindItems]);
+  const scopeLabel =
+    kindFilter === 'all'
+      ? 'All Associates'
+      : `${DEPARTMENT_KIND_LABELS[kindFilter]} Associates`;
   const keyName = useMemo(
     () => new Map(shiftKeys.map((k) => [k.id, k.name])),
     [shiftKeys],
@@ -141,10 +184,80 @@ export function AssociateManager({
     }
   }
 
+  async function confirmDelete() {
+    if (!deleting) return;
+    setPending(true);
+    const result = await deleteAssociate(deleting.id);
+    setPending(false);
+    if (result.ok) {
+      toast({ title: 'Associate deleted' });
+      setDeleting(null);
+      router.refresh();
+    } else {
+      toast({
+        title: 'Could not delete',
+        description: result.error,
+        variant: 'error',
+      });
+      setDeleting(null);
+    }
+  }
+
   return (
     <>
+      {/* Counter — reflects the department + status filters (dashboard style). */}
+      <div className="mb-4 grid grid-cols-3 gap-3 sm:max-w-md">
+        {[
+          { label: scopeLabel, value: counts.total },
+          { label: 'Active', value: counts.active },
+          { label: 'Inactive', value: counts.inactive },
+        ].map((stat) => (
+          <Card key={stat.label}>
+            <CardContent className="px-4 py-3 text-center">
+              <p className="text-foreground text-2xl font-semibold tabular-nums">
+                {stat.value}
+              </p>
+              <p className="text-foreground-muted mt-0.5 truncate text-xs">
+                {stat.label}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <FilterField label="Department" htmlFor="assoc-kind-filter">
+          <Select
+            id="assoc-kind-filter"
+            value={kindFilter}
+            onChange={(e) =>
+              setKindFilter(e.target.value as 'all' | 'inbound' | 'outbound')
+            }
+            className="sm:w-44"
+          >
+            <option value="all">All departments</option>
+            <option value="inbound">{DEPARTMENT_KIND_LABELS.inbound}</option>
+            <option value="outbound">{DEPARTMENT_KIND_LABELS.outbound}</option>
+          </Select>
+        </FilterField>
+        <FilterField label="Status" htmlFor="assoc-status-filter">
+          <Select
+            id="assoc-status-filter"
+            value={statusFilter}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')
+            }
+            className="sm:w-40"
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </Select>
+        </FilterField>
+      </div>
       <ConfigList
-        items={items}
+        items={filteredItems}
+        hideStatusFilter
         getKey={(i) => i.id}
         searchText={(i) => `${i.firstName} ${i.lastName} ${i.employeeId ?? ''}`}
         isActive={(i) => i.active}
@@ -192,6 +305,7 @@ export function AssociateManager({
             active={i.active}
             onEdit={() => openEdit(i)}
             onToggle={() => setToggling(i)}
+            onDelete={() => setDeleting(i)}
           />
         )}
       />
@@ -329,6 +443,17 @@ export function AssociateManager({
         pending={pending}
         onConfirm={confirmToggle}
         onCancel={() => setToggling(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleting}
+        title="Delete associate?"
+        description="This permanently removes the associate. If they appear in any plan or history, deletion is blocked — deactivate instead to preserve historical reporting."
+        confirmLabel="Delete"
+        destructive
+        pending={pending}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
       />
     </>
   );

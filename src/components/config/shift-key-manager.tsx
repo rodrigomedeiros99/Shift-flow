@@ -31,6 +31,7 @@ const BLANK: ShiftKeyFormValues = {
   startTime: '08:00',
   endTime: '18:30',
   daysOfWeek: '',
+  productiveHours: '',
   active: true,
 };
 
@@ -60,6 +61,8 @@ export function ShiftKeyManager({ items }: { items: ShiftKey[] }) {
       startTime: item.startTime.slice(0, 5),
       endTime: item.endTime.slice(0, 5),
       daysOfWeek: item.daysOfWeek,
+      productiveHours:
+        item.productiveHours === null ? '' : String(item.productiveHours),
       active: item.active,
     });
     setOpen(true);
@@ -125,6 +128,15 @@ export function ShiftKeyManager({ items }: { items: ShiftKey[] }) {
               `${i.startTime.slice(0, 5)} – ${i.endTime.slice(0, 5)}`,
           },
           { header: 'Days', cell: (i) => i.daysOfWeek },
+          {
+            header: 'Productive hrs',
+            cell: (i) =>
+              i.productiveHours === null ? (
+                <span className="text-warning font-medium">Not set</span>
+              ) : (
+                <span className="tabular-nums">{i.productiveHours}</span>
+              ),
+          },
           { header: 'Status', cell: (i) => <StatusCell active={i.active} /> },
         ]}
         renderActions={(i) => (
@@ -196,6 +208,21 @@ export function ShiftKeyManager({ items }: { items: ShiftKey[] }) {
               id="key-days"
               {...form.register('daysOfWeek')}
               placeholder="e.g. Mon-Thu"
+            />
+          </Field>
+          <Field
+            label="Productive hours"
+            htmlFor="key-hours"
+            error={form.formState.errors.productiveHours?.message}
+          >
+            <Input
+              id="key-hours"
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              placeholder="e.g. 10 — used by the UPH calculator"
+              {...form.register('productiveHours')}
             />
           </Field>
           <Checkbox

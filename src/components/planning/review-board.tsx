@@ -7,9 +7,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertTriangle,
   ArrowLeftRight,
+  Check,
   Pencil,
   Plus,
+  Sparkles,
   Trash2,
+  X,
 } from 'lucide-react';
 import {
   Badge,
@@ -20,6 +23,7 @@ import {
   CardTitle,
   ConfirmDialog,
   EmptyState,
+  IconButton,
   Input,
   Modal,
   Select,
@@ -44,6 +48,11 @@ import {
   scoreAssignments,
   type RotationRecord,
 } from '@/features/planning/rotation';
+import {
+  suggestSwap,
+  type SwapSuggestion,
+} from '@/features/planning/rotation-suggest';
+import { formatDateUS } from '@/lib/utils/date';
 import type {
   Assignment,
   Associate,
@@ -70,10 +79,14 @@ interface ReviewBoardProps {
   groupBy?: 'task' | 'door';
   /** Planned-history rows for fair-rotation notices/score (Phase 7). */
   rotationRecords?: RotationRecord[];
+  /** associateId → certified equipment ids, for valid swap suggestions. */
+  certificationsByAssociate?: Record<string, string[]>;
   /** This plan's date — the rotation reference point. */
   planDate: string;
   /** Rotation lookback window (days) chosen in the workspace. */
   lookbackDays?: number;
+  /** Total people the plan asked for (staffing needs + active doors). */
+  totalNeeded?: number;
   /** Published plans render the board without edit controls. */
   readOnly?: boolean;
 }
@@ -91,8 +104,10 @@ export function ReviewBoard({
   specials,
   groupBy = 'task',
   rotationRecords = [],
+  certificationsByAssociate = {},
   planDate,
   lookbackDays = 1,
+  totalNeeded,
   readOnly = false,
 }: ReviewBoardProps) {
   const router = useRouter();
@@ -183,6 +198,64 @@ export function ReviewBoard({
       planDate,
       lookbackDays,
     );
+
+  // --- Rotation swap suggestions (advisory) ---
+  const certContext = useMemo(
+    () => ({
+      certifiedByAssociate: new Map(Object.entries(certificationsByAssociate)),
+      certRequiredByEquipment: new Map(
+        equipment.map((e) => [e.id, e.certificationRequired]),
+      ),
+    }),
+    [certificationsByAssociate, equipment],
+  );
+  const swapInputs = useMemo(
+    () =>
+      assignments.map((a) => ({
+        id: a.id,
+        associateId: a.associateId,
+        taskTypeId: a.taskTypeId,
+        equipmentId: a.equipmentId,
+      })),
+    [assignments],
+  );
+  const suggestionFor = (a: Assignment): SwapSuggestion | null =>
+    suggestSwap(
+      a.id,
+      swapInputs,
+      rotationIndex,
+      planDate,
+      lookbackDays,
+      certContext,
+    );
+  /** Conflicted cards the leader chose to ignore (local, session-only). */
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const dismiss = (id: string) => setDismissed((prev) => new Set(prev).add(id));
+
+  async function applySuggestion(targetId: string, partnerId: string) {
+    setPending(true);
+    const result = await switchAssignments(
+      planId,
+      targetId,
+      partnerId,
+      lookbackDays,
+    );
+    setPending(false);
+    if (result.ok) {
+      toast({
+        title: 'Swap applied',
+        description: result.warning,
+        variant: result.warning ? 'info' : undefined,
+      });
+      router.refresh();
+    } else {
+      toast({
+        title: 'Could not apply',
+        description: result.error,
+        variant: 'error',
+      });
+    }
+  }
 
   // --- Edit / Add modal (shared) ---
   const [editing, setEditing] = useState<Assignment | null>(null);
@@ -315,6 +388,26 @@ export function ReviewBoard({
 
   return (
     <div className="space-y-6">
+      {totalNeeded !== undefined ? (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Total needed', value: totalNeeded },
+            { label: 'Assigned', value: assignments.length },
+            { label: 'Available', value: pool.length },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="border-border bg-surface rounded-lg border p-4 text-center"
+            >
+              <p className="text-foreground text-2xl font-semibold tabular-nums">
+                {stat.value}
+              </p>
+              <p className="text-foreground-muted mt-1 text-xs">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h2 className="text-foreground text-lg font-semibold">
@@ -388,38 +481,50 @@ export function ReviewBoard({
                         />
                         Planned{' '}
                         {taskName.get(a.taskTypeId ?? '') ?? 'this task'} on{' '}
-                        {conflictDate(a)}
+                        {formatDateUS(conflictDate(a) ?? '')}
                       </p>
+                    ) : null}
+                    {!readOnly && conflictDate(a) && !dismissed.has(a.id) ? (
+                      <RotationSuggestion
+                        suggestion={suggestionFor(a)}
+                        partnerName={(id) => nameOf.get(id) ?? '—'}
+                        taskLabel={
+                          taskName.get(a.taskTypeId ?? '') ?? 'this task'
+                        }
+                        pending={pending}
+                        onApply={(partnerId) =>
+                          applySuggestion(a.id, partnerId)
+                        }
+                        onIgnore={() => dismiss(a.id)}
+                      />
                     ) : null}
                     {!readOnly ? (
                       <div className="mt-2 flex items-center justify-end gap-1">
-                        <button
-                          type="button"
+                        <IconButton
+                          label="Edit assignment"
                           onClick={() => openEdit(a)}
-                          className="text-foreground-muted hover:bg-surface-raised hover:text-foreground rounded-md p-1.5"
-                          aria-label="Edit assignment"
-                        >
-                          <Pencil className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
+                          icon={
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                          }
+                        />
+                        <IconButton
+                          label="Switch assignment"
                           onClick={() => openSwitch(a)}
-                          className="text-foreground-muted hover:bg-surface-raised hover:text-foreground rounded-md p-1.5"
-                          aria-label="Switch assignment"
-                        >
-                          <ArrowLeftRight
-                            className="h-4 w-4"
-                            aria-hidden="true"
-                          />
-                        </button>
-                        <button
-                          type="button"
+                          icon={
+                            <ArrowLeftRight
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            />
+                          }
+                        />
+                        <IconButton
+                          label="Remove assignment"
+                          tone="danger"
                           onClick={() => setRemovingItem(a)}
-                          className="text-foreground-muted hover:bg-surface-raised hover:text-danger rounded-md p-1.5"
-                          aria-label="Remove assignment"
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                          icon={
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          }
+                        />
                       </div>
                     ) : null}
                   </div>
@@ -607,6 +712,78 @@ export function ReviewBoard({
         onConfirm={confirmRemove}
         onCancel={() => setRemovingItem(null)}
       />
+    </div>
+  );
+}
+
+/**
+ * Advisory fair-rotation suggestion shown under a conflicted card. Recommends a
+ * cert-valid swap that improves rotation; applying it runs the existing switch.
+ * Never blocks — the leader can Ignore and keep the assignment as-is.
+ */
+function RotationSuggestion({
+  suggestion,
+  partnerName,
+  taskLabel,
+  pending,
+  onApply,
+  onIgnore,
+}: {
+  suggestion: SwapSuggestion | null;
+  partnerName: (associateId: string) => string;
+  taskLabel: string;
+  pending: boolean;
+  onApply: (partnerAssignmentId: string) => void;
+  onIgnore: () => void;
+}) {
+  if (!suggestion) {
+    return (
+      <div className="border-border bg-surface-raised/50 text-foreground-muted mt-2 rounded-md border border-dashed p-2 text-xs">
+        No better rotation suggestion found. This assignment may be necessary
+        based on available associates and staffing needs.
+      </div>
+    );
+  }
+
+  const reaches100 = suggestion.afterScore >= 100;
+  return (
+    <div className="border-primary/30 bg-primary/5 mt-2 rounded-md border p-2.5">
+      <p className="text-foreground flex items-center gap-1.5 text-xs font-medium">
+        <Sparkles className="text-primary h-3.5 w-3.5 shrink-0" aria-hidden />
+        Suggestion
+      </p>
+      <p className="text-foreground-muted mt-1 text-xs">
+        Switch {taskLabel} with{' '}
+        <span className="text-foreground font-medium">
+          {partnerName(suggestion.partnerAssociateId)}
+        </span>
+        , who hasn&apos;t done it recently. Improves rotation{' '}
+        <span className="text-foreground font-medium tabular-nums">
+          {suggestion.beforeScore}% → {suggestion.afterScore}%
+        </span>
+        {reaches100 ? ' (fully rotated).' : '.'}
+      </p>
+      <div className="mt-2 flex items-center gap-2">
+        <Button
+          size="sm"
+          className="gap-1"
+          disabled={pending}
+          onClick={() => onApply(suggestion.partnerAssignmentId)}
+        >
+          <Check className="h-3.5 w-3.5" aria-hidden />
+          Apply suggestion
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="gap-1"
+          disabled={pending}
+          onClick={onIgnore}
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+          Ignore
+        </Button>
+      </div>
     </div>
   );
 }

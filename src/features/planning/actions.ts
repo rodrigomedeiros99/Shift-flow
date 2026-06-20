@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole, PLANNER_ROLES } from '@/features/auth/queries';
-import { listTemplateItems } from '@/features/templates/queries';
 import {
   findActivePlan,
   getPlan,
@@ -12,23 +11,43 @@ import {
   getRotationRecords,
   listCallOffs,
   listPlanAssignments,
-  listPlanDockDoors,
+  listPlanDockDoorRows,
   listSpecialAssignments,
+  listStaffingNeeds,
 } from './queries';
-import { generateAssignments, type GenTemplateItem } from './generate';
+import { generateAssignments, type GenStaffingItem } from './generate';
 import {
   buildRotationIndex,
   recentConflictDate,
   scoreAssignments,
 } from './rotation';
 import { logAudit } from '@/features/audit/log';
-import type { DailyPlan } from '@/types/domain';
+import {
+  clearNotificationsByDedupe,
+  emitNotifications,
+  loadPlanLabel,
+  type EmitContext,
+} from '@/features/notifications/emit';
+import {
+  buildDraftExists,
+  buildPlanPublished,
+  buildRotationAlert,
+  buildStaffingWarning,
+  buildUphWarning,
+  type NotificationDraft,
+  type RotationConflict,
+  type StaffingShortfall,
+  type UphDelta,
+} from '@/features/notifications/generate';
+import type { StaffingNeed, PlanDockDoorRow } from './queries';
+import type { DailyPlan, TaskType } from '@/types/domain';
 import {
   activeDoorsSchema,
   assignmentEditSchema,
   overtimeEntrySchema,
   planSetupSchema,
   specialAssignmentSchema,
+  staffingNeedsSchema,
   trainingPairSchema,
 } from './schemas';
 import type {
@@ -38,6 +57,7 @@ import type {
   WarnResult,
 } from './types';
 import type {
+  AbsenceType,
   AssignmentType,
   SpecialAssignmentType,
 } from '@/lib/constants/assignments';
@@ -150,6 +170,94 @@ function mergeWarnings(...parts: (string | null)[]): string | undefined {
   return joined.length > 0 ? joined : undefined;
 }
 
+// --- Notification emission ---------------------------------------------------
+
+/** Resolve task names for the given ids (for notification messages). */
+async function taskNames(ids: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('task_types')
+    .select('id, name')
+    .in('id', unique);
+  return new Map(
+    ((data as { id: string; name: string }[] | null) ?? []).map((r) => [
+      r.id,
+      r.name,
+    ]),
+  );
+}
+
+/** Needed-vs-assigned shortfalls per task (door demand = one position per door). */
+function computeStaffingShortfalls(
+  tasks: TaskType[],
+  staffingNeeds: StaffingNeed[],
+  activeDoors: PlanDockDoorRow[],
+  assignedTaskIds: (string | null)[],
+): StaffingShortfall[] {
+  const taskById = new Map(tasks.map((t) => [t.id, t]));
+  const doorTasks = tasks.filter((t) => t.needsDockDoor && t.active);
+  const soleDoorTask = doorTasks.length === 1 ? doorTasks[0] : undefined;
+  const doorTaskFor = (equipmentId: string | null): string | null => {
+    if (equipmentId) {
+      const m = doorTasks.find((t) => t.defaultEquipmentId === equipmentId);
+      if (m) return m.id;
+    }
+    return soleDoorTask?.id ?? null;
+  };
+  const doorTaskIds = new Set(doorTasks.map((t) => t.id));
+
+  const needed = new Map<string, number>();
+  for (const n of staffingNeeds) {
+    if (!doorTaskIds.has(n.taskTypeId)) {
+      needed.set(
+        n.taskTypeId,
+        (needed.get(n.taskTypeId) ?? 0) + n.peopleNeeded,
+      );
+    }
+  }
+  for (const d of activeDoors) {
+    const tid = doorTaskFor(d.equipmentId);
+    if (tid) needed.set(tid, (needed.get(tid) ?? 0) + 1);
+  }
+
+  const assigned = new Map<string, number>();
+  for (const tid of assignedTaskIds) {
+    if (tid) assigned.set(tid, (assigned.get(tid) ?? 0) + 1);
+  }
+
+  const out: StaffingShortfall[] = [];
+  for (const [tid, need] of needed) {
+    const got = assigned.get(tid) ?? 0;
+    if (got < need) {
+      out.push({
+        taskName: taskById.get(tid)?.name ?? 'Task',
+        needed: need,
+        assigned: got,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Reconcile a set of conditions: emit the present drafts, and clear the dedupe
+ * key of any condition that resolved (null draft) so a fixed plan doesn't keep a
+ * stale warning. Each entry's clear key is the draft's own `dedupeKey`.
+ */
+async function applyNotifications(
+  ctx: EmitContext,
+  entries: { key: string; draft: NotificationDraft | null }[],
+): Promise<void> {
+  const emit = entries
+    .map((e) => e.draft)
+    .filter((d): d is NotificationDraft => d !== null);
+  const clear = entries.filter((e) => e.draft === null).map((e) => e.key);
+  await emitNotifications(ctx, emit);
+  await clearNotificationsByDedupe(ctx.facilityId, clear);
+}
+
 // --- Create / setup ---------------------------------------------------------
 
 export async function createDraftPlan(
@@ -207,13 +315,110 @@ export async function createDraftPlan(
       planDate: parsed.data.planDate,
     },
   });
+
+  // One draft notification per plan (deduped); auto-clears when the draft is
+  // deleted (FK cascade) or published.
+  const label = await loadPlanLabel({
+    id: newId,
+    departmentId: parsed.data.departmentId,
+    shiftKeyId: parsed.data.shiftKeyId,
+  });
+  await emitNotifications(
+    {
+      facilityId: profile.facilityId,
+      recipientUserId: profile.id,
+      dailyPlanId: newId,
+    },
+    [buildDraftExists(label)],
+  );
+
   revalidatePath('/dashboard');
   return { ok: true, id: newId };
 }
 
+/**
+ * Delete an unfinished DRAFT plan. Only drafts are deletable (published/closed
+ * are rejected); a manager (admin/supervisor) or the draft's creator may do it.
+ * Child rows cascade; drafts have no planned/activity history to lose.
+ */
+export async function deleteDraftPlan(planId: string): Promise<ActionResult> {
+  const profile = await requireRole(PLANNER_ROLES);
+  const plan = await getPlan(planId);
+  if (!plan) return fail('Plan not found.');
+  if (plan.status !== 'draft') return fail('Only draft plans can be deleted.');
+
+  const isManager = profile.role === 'admin' || profile.role === 'supervisor';
+  if (!isManager && plan.createdBy !== profile.id) {
+    return fail('You can only delete drafts you created.');
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('daily_plans')
+    .delete()
+    .eq('id', planId)
+    .eq('status', 'draft');
+  if (error) return dbFail();
+
+  // entity_id (plain uuid) survives; daily_plan_id FK would be nulled on delete.
+  await logAudit({
+    actionType: 'delete_draft',
+    entityType: 'daily_plan',
+    entityId: planId,
+  });
+  revalidatePath('/dashboard');
+  revalidatePath('/create-plan');
+  return ok;
+}
+
 // --- Morning wizard ---------------------------------------------------------
 
+/**
+ * Replace the plan's absences of a single type (call-off / vacation /
+ * scheduled-time-off). Only the given type's rows are replaced; checking an
+ * associate already absent under another type moves them (upsert on the
+ * plan+associate unique key). All types remove the associate from planning.
+ */
 export async function saveCallOffs(
+  planId: string,
+  associateIds: string[],
+  type: AbsenceType = 'call_off',
+): Promise<ActionResult> {
+  const profile = await requireRole(PLANNER_ROLES);
+  const guard = await requireDraft(planId);
+  if (!guard.ok) return guard;
+
+  const supabase = await createClient();
+  const { error: delError } = await supabase
+    .from('call_offs')
+    .delete()
+    .eq('daily_plan_id', planId)
+    .eq('type', type);
+  if (delError) return dbFail();
+
+  if (associateIds.length > 0) {
+    const rows = associateIds.map((associateId) => ({
+      daily_plan_id: planId,
+      associate_id: associateId,
+      type,
+      created_by: profile.id,
+    }));
+    const { error: insError } = await supabase
+      .from('call_offs')
+      .upsert(rows, { onConflict: 'daily_plan_id,associate_id' });
+    if (insError) return dbFail();
+  }
+
+  revalidatePath(`/create-plan/${planId}`);
+  return ok;
+}
+
+/**
+ * Replace the plan's "not available" associates in one set. The reason for being
+ * out (call-off / vacation / time off) doesn't matter for plan generation, so all
+ * are stored uniformly and excluded from the available pool.
+ */
+export async function saveNotAvailable(
   planId: string,
   associateIds: string[],
 ): Promise<ActionResult> {
@@ -232,6 +437,7 @@ export async function saveCallOffs(
     const rows = associateIds.map((associateId) => ({
       daily_plan_id: planId,
       associate_id: associateId,
+      type: 'call_off',
       created_by: profile.id,
     }));
     const { error: insError } = await supabase.from('call_offs').insert(rows);
@@ -242,15 +448,15 @@ export async function saveCallOffs(
   return ok;
 }
 
-/** Replace the plan's active dock doors (inbound Step 4). */
+/** Replace the plan's active dock doors + their per-day equipment (Step 4). */
 export async function saveActiveDoors(
   planId: string,
-  doorIds: string[],
+  doors: z.input<typeof activeDoorsSchema>['doors'],
 ): Promise<ActionResult> {
   await requireRole(PLANNER_ROLES);
   const guard = await requireDraft(planId);
   if (!guard.ok) return guard;
-  const parsed = activeDoorsSchema.safeParse({ doorIds });
+  const parsed = activeDoorsSchema.safeParse({ doors });
   if (!parsed.success) return fail('Please check the form and try again.');
 
   const supabase = await createClient();
@@ -260,10 +466,11 @@ export async function saveActiveDoors(
     .eq('daily_plan_id', planId);
   if (delError) return dbFail();
 
-  if (parsed.data.doorIds.length > 0) {
-    const rows = parsed.data.doorIds.map((dockDoorId) => ({
+  if (parsed.data.doors.length > 0) {
+    const rows = parsed.data.doors.map((d) => ({
       daily_plan_id: planId,
-      dock_door_id: dockDoorId,
+      dock_door_id: d.dockDoorId,
+      equipment_id: nullable(d.equipmentId),
     }));
     const { error: insError } = await supabase
       .from('plan_dock_doors')
@@ -392,15 +599,97 @@ export async function removeSpecialAssignment(
   return ok;
 }
 
-// --- Auto-generate ----------------------------------------------------------
+// --- Staffing needs ---------------------------------------------------------
 
-export type GenerateSource =
-  | { type: 'template'; templateId: string }
-  | { type: 'blank' };
+/** Save people-per-task demand for the plan (v2 replaces template selection). */
+export async function saveStaffingNeeds(
+  planId: string,
+  input: z.input<typeof staffingNeedsSchema>,
+): Promise<ActionResult> {
+  await requireRole(PLANNER_ROLES);
+  const guard = await requireDraft(planId);
+  if (!guard.ok) return guard;
+  const parsed = staffingNeedsSchema.safeParse(input);
+  if (!parsed.success) return fail('Please check the form and try again.');
+
+  const supabase = await createClient();
+  const { error: delError } = await supabase
+    .from('plan_staffing_needs')
+    .delete()
+    .eq('daily_plan_id', planId);
+  if (delError) return dbFail();
+
+  const rows = parsed.data.rows
+    .filter((r) => r.peopleNeeded > 0)
+    .map((r) => ({
+      daily_plan_id: planId,
+      task_type_id: r.taskTypeId,
+      people_needed: r.peopleNeeded,
+    }));
+  if (rows.length > 0) {
+    const { error: insError } = await supabase
+      .from('plan_staffing_needs')
+      .insert(rows);
+    if (insError) return dbFail();
+  }
+
+  // UPH snapshot — preserved per task so old plans keep the UPH used at creation
+  // even after Settings change. Only rows with units entered are meaningful.
+  const { error: delUphError } = await supabase
+    .from('plan_uph_calculations')
+    .delete()
+    .eq('daily_plan_id', planId);
+  if (delUphError) return dbFail();
+
+  const uphRows = parsed.data.uph
+    .filter((r) => r.unitsPlanned > 0)
+    .map((r) => ({
+      daily_plan_id: planId,
+      task_type_id: r.taskTypeId,
+      units_planned: r.unitsPlanned,
+      uph_used: r.uphUsed,
+      shift_hours_used: r.shiftHoursUsed,
+      recommended_people: r.recommendedPeople,
+      final_people: r.finalPeople,
+    }));
+  if (uphRows.length > 0) {
+    const { error: insUphError } = await supabase
+      .from('plan_uph_calculations')
+      .insert(uphRows);
+    if (insUphError) return dbFail();
+  }
+
+  // UPH variance notification — flag tasks whose final staffing diverges from
+  // the UPH recommendation by the threshold. Re-evaluated each save; cleared
+  // when nothing diverges (so a corrected plan drops the warning).
+  const plan = await getPlan(planId);
+  if (plan) {
+    const withRec = parsed.data.uph.filter((r) => r.recommendedPeople !== null);
+    const names = await taskNames(withRec.map((r) => r.taskTypeId));
+    const deltas: UphDelta[] = withRec.map((r) => ({
+      taskName: names.get(r.taskTypeId) ?? 'Task',
+      recommended: r.recommendedPeople as number,
+      staffed: r.finalPeople,
+    }));
+    const label = await loadPlanLabel(plan);
+    await applyNotifications(
+      {
+        facilityId: plan.facilityId,
+        recipientUserId: plan.createdBy,
+        dailyPlanId: plan.id,
+      },
+      [{ key: `uph:${planId}`, draft: buildUphWarning(label, deltas) }],
+    );
+  }
+
+  revalidatePath(`/create-plan/${planId}`);
+  return ok;
+}
+
+// --- Auto-generate ----------------------------------------------------------
 
 export async function autoGeneratePlan(
   planId: string,
-  source: GenerateSource,
   lookbackDays: number = DEFAULT_LOOKBACK,
 ): Promise<GenerateResult> {
   await requireRole(PLANNER_ROLES);
@@ -409,16 +698,23 @@ export async function autoGeneratePlan(
   if (plan.status !== 'draft')
     return fail('This plan is published and read-only.');
 
-  const [inputs, callOffs, specials, activeDoorIds, rotationRecords] =
-    await Promise.all([
-      getPlanInputs(plan.departmentId, plan.shiftKeyId),
-      listCallOffs(planId),
-      listSpecialAssignments(planId),
-      listPlanDockDoors(planId),
-      // 30-day window: lookback drives recent-repeat avoidance; the full window
-      // feeds the least-frequently-assigned tie-break.
-      getRotationRecords(plan.departmentId, plan.shiftKeyId, plan.planDate, 30),
-    ]);
+  const [
+    inputs,
+    callOffs,
+    specials,
+    activeDoors,
+    staffingNeeds,
+    rotationRecords,
+  ] = await Promise.all([
+    getPlanInputs(plan.departmentId, plan.shiftKeyId),
+    listCallOffs(planId),
+    listSpecialAssignments(planId),
+    listPlanDockDoorRows(planId),
+    listStaffingNeeds(planId),
+    // 30-day window: lookback drives recent-repeat avoidance; the full window
+    // feeds the least-frequently-assigned tie-break.
+    getRotationRecords(plan.departmentId, plan.shiftKeyId, plan.planDate, 30),
+  ]);
 
   const rotationIndex = buildRotationIndex(rotationRecords);
 
@@ -437,27 +733,53 @@ export async function autoGeneratePlan(
       certifiedEquipmentIds: inputs.certificationsByAssociate[a.id] ?? [],
     }));
 
-  let templateItems: GenTemplateItem[] = [];
-  if (source.type === 'template') {
-    const items = await listTemplateItems(source.templateId);
-    templateItems = items.map((i) => ({
-      taskTypeId: i.taskTypeId,
-      dockDoorId: i.dockDoorId,
-      defaultEquipmentId: i.defaultEquipmentId,
-      peopleNeeded: i.peopleNeeded,
-      sortOrder: i.sortOrder,
-      perActiveDoor: i.perActiveDoor,
+  // Each staffing need's slots default to that task's configured equipment.
+  const equipForTask = new Map(
+    inputs.tasks.map((t) => [t.id, t.defaultEquipmentId]),
+  );
+  // Door-driven tasks (Unload) are staffed from active doors below, never from a
+  // people count — so exclude them from staffing slots even if a stale need row
+  // exists.
+  const doorTaskIds = new Set(
+    inputs.tasks.filter((t) => t.needsDockDoor).map((t) => t.id),
+  );
+  const staffingItems: GenStaffingItem[] = staffingNeeds
+    .filter((n) => !doorTaskIds.has(n.taskTypeId))
+    .map((n) => ({
+      taskTypeId: n.taskTypeId,
+      equipmentId: equipForTask.get(n.taskTypeId) ?? null,
+      peopleNeeded: n.peopleNeeded,
     }));
-  }
+
+  // Each active door becomes one unload position. Its task is a door-driven task
+  // (needs_dock_door), chosen by matching the door's equipment to a door-task's
+  // default equipment; if only one door-task exists, use it; otherwise leave the
+  // task null (the board still shows the door + equipment).
+  const doorTasks = inputs.tasks.filter((t) => t.needsDockDoor && t.active);
+  const soleDoorTask = doorTasks.length === 1 ? doorTasks[0] : undefined;
+  const doorTaskFor = (equipmentId: string | null): string | null => {
+    if (equipmentId) {
+      const byEquip = doorTasks.find(
+        (t) => t.defaultEquipmentId === equipmentId,
+      );
+      if (byEquip) return byEquip.id;
+    }
+    return soleDoorTask?.id ?? null;
+  };
+  const genDoors = activeDoors.map((d) => ({
+    dockDoorId: d.dockDoorId,
+    equipmentId: d.equipmentId,
+    taskTypeId: doorTaskFor(d.equipmentId),
+  }));
 
   const result = generateAssignments({
-    templateItems,
+    staffingItems,
+    activeDoors: genDoors,
     availableAssociates,
     equipment: inputs.equipment.map((e) => ({
       id: e.id,
       certificationRequired: e.certificationRequired,
     })),
-    activeDoorIds,
     rotation: {
       index: rotationIndex,
       planDate: plan.planDate,
@@ -496,6 +818,55 @@ export async function autoGeneratePlan(
     rotationIndex,
     plan.planDate,
     lookbackDays,
+  );
+
+  // Operational notifications from the freshly generated board.
+  const shortfalls = computeStaffingShortfalls(
+    inputs.tasks,
+    staffingNeeds,
+    activeDoors,
+    result.assignments.map((a) => a.taskTypeId),
+  );
+  const assocName = new Map(
+    inputs.associates.map((a) => [a.id, `${a.firstName} ${a.lastName}`.trim()]),
+  );
+  const taskNameById = new Map(inputs.tasks.map((t) => [t.id, t.name]));
+  const conflicts: RotationConflict[] = [];
+  for (const a of result.assignments) {
+    if (
+      recentConflictDate(
+        rotationIndex,
+        a.associateId,
+        a.taskTypeId,
+        plan.planDate,
+        lookbackDays,
+      )
+    ) {
+      conflicts.push({
+        associateName: assocName.get(a.associateId) ?? 'Associate',
+        taskName: a.taskTypeId
+          ? (taskNameById.get(a.taskTypeId) ?? 'task')
+          : 'task',
+      });
+    }
+  }
+  const label = await loadPlanLabel(plan);
+  await applyNotifications(
+    {
+      facilityId: plan.facilityId,
+      recipientUserId: plan.createdBy,
+      dailyPlanId: plan.id,
+    },
+    [
+      {
+        key: `staffing:${planId}`,
+        draft: buildStaffingWarning(label, shortfalls),
+      },
+      {
+        key: `rotation:${planId}`,
+        draft: buildRotationAlert(label, conflicts),
+      },
+    ],
   );
 
   revalidatePath(`/create-plan/${planId}`);
@@ -669,10 +1040,14 @@ export async function publishPlan(planId: string): Promise<ActionResult> {
   if (!plan) return fail('Plan not found.');
   if (plan.status !== 'draft') return fail('This plan is already published.');
 
-  const [assignments, specials] = await Promise.all([
-    listPlanAssignments(planId),
-    listSpecialAssignments(planId),
-  ]);
+  const [assignments, specials, staffingNeeds, activeDoors, inputs] =
+    await Promise.all([
+      listPlanAssignments(planId),
+      listSpecialAssignments(planId),
+      listStaffingNeeds(planId),
+      listPlanDockDoorRows(planId),
+      getPlanInputs(plan.departmentId, plan.shiftKeyId),
+    ]);
 
   if (assignments.length === 0 && specials.length === 0) {
     return fail('Add at least one assignment before publishing.');
@@ -722,6 +1097,29 @@ export async function publishPlan(planId: string): Promise<ActionResult> {
     dailyPlanId: planId,
     newValue: { assignments: assignments.length, specials: specials.length },
   });
+
+  // Notify: plan published; re-check staffing; the draft notice is now resolved.
+  const label = await loadPlanLabel(plan);
+  const ctx: EmitContext = {
+    facilityId: plan.facilityId,
+    recipientUserId: plan.createdBy,
+    dailyPlanId: plan.id,
+  };
+  const shortfalls = computeStaffingShortfalls(
+    inputs.tasks,
+    staffingNeeds,
+    activeDoors,
+    assignments.map((a) => a.taskTypeId),
+  );
+  await emitNotifications(ctx, [buildPlanPublished(label)]);
+  await applyNotifications(ctx, [
+    {
+      key: `staffing:${planId}`,
+      draft: buildStaffingWarning(label, shortfalls),
+    },
+  ]);
+  await clearNotificationsByDedupe(plan.facilityId, [`draft:${planId}`]);
+
   revalidatePath(`/create-plan/${planId}`);
   revalidatePath('/dashboard');
   return ok;

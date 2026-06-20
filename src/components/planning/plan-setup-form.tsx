@@ -40,13 +40,21 @@ export function PlanSetupForm({ departments, shiftKeys }: PlanSetupFormProps) {
   const [pending, setPending] = useState(false);
   const [duplicateId, setDuplicateId] = useState<string | null>(null);
 
+  // Planning only applies to operational inbound/outbound departments — by kind,
+  // never by name (e.g. ICQA/Support/Transportation are excluded).
+  const planDepartments = useMemo(
+    () =>
+      departments.filter((d) => d.kind === 'inbound' || d.kind === 'outbound'),
+    [departments],
+  );
+
   const defaults = useMemo<PlanSetupValues>(
     () => ({
-      departmentId: departments[0]?.id ?? '',
+      departmentId: planDepartments[0]?.id ?? '',
       shiftKeyId: shiftKeys[0]?.id ?? '',
       planDate: todayISO(),
     }),
-    [departments, shiftKeys],
+    [planDepartments, shiftKeys],
   );
 
   const form = useForm<PlanSetupValues>({
@@ -86,7 +94,7 @@ export function PlanSetupForm({ departments, shiftKeys }: PlanSetupFormProps) {
           >
             <Select id="plan-dept" {...form.register('departmentId')}>
               <option value="">Select a department</option>
-              {departments.map((d) => (
+              {planDepartments.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name} ({DEPARTMENT_KIND_LABELS[d.kind]})
                   {d.active ? '' : ' (inactive)'}

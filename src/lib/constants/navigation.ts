@@ -7,7 +7,7 @@ import {
   Users,
   ClipboardList,
   Forklift,
-  LayoutTemplate,
+  DoorClosed,
   MonitorPlay,
   Settings,
 } from 'lucide-react';
@@ -55,9 +55,9 @@ export const PRIMARY_NAV: readonly NavItem[] = [
   { label: 'Tasks', href: '/tasks', icon: ClipboardList, enabled: true },
   { label: 'Equipment', href: '/equipment', icon: Forklift, enabled: true },
   {
-    label: 'Templates',
-    href: '/templates',
-    icon: LayoutTemplate,
+    label: 'Dock Doors',
+    href: '/dock-doors',
+    icon: DoorClosed,
     enabled: true,
   },
   { label: 'Settings', href: '/settings', icon: Settings, enabled: true },

@@ -12,6 +12,19 @@ import { z } from 'zod';
  */
 
 const name = z.string().trim().min(1, 'Required').max(80, 'Too long');
+
+/**
+ * A positive number entered as text, or empty for "not set". Kept as a string
+ * (like the optional-uuid fields) so the form value type matches the validated
+ * type; the server action parses `'' → null` and the rest to a number.
+ */
+const positiveNumberOrEmpty = z
+  .string()
+  .trim()
+  .refine(
+    (v) => v === '' || (/^\d+(\.\d+)?$/.test(v) && Number(v) > 0),
+    'Enter a number greater than 0',
+  );
 const optionalText = z.string().trim().max(500, 'Too long').optional();
 
 export const equipmentSchema = z.object({
@@ -33,6 +46,11 @@ export const taskSchema = z.object({
   departmentId: z.string().uuid('Select a department'),
   // '' means "no default equipment"; normalized to null in the action.
   defaultEquipmentId: z.union([z.string().uuid(), z.literal('')]),
+  // Inbound: staffed per active dock door rather than by a people count.
+  needsDockDoor: z.boolean(),
+  // UPH labor calculator: whether it applies, and the rate ('' = not configured).
+  usesUph: z.boolean(),
+  avgUnitsPerHour: positiveNumberOrEmpty,
   sortOrder: z.number().int().min(0).max(9999),
   active: z.boolean(),
 });
@@ -55,6 +73,8 @@ export const shiftKeySchema = z.object({
   startTime: time,
   endTime: time,
   daysOfWeek: z.string().trim().min(1, 'Required').max(40, 'Too long'),
+  // Productive hours for the UPH calculator ('' = not configured).
+  productiveHours: positiveNumberOrEmpty,
   active: z.boolean(),
 });
 export type ShiftKeyFormValues = z.infer<typeof shiftKeySchema>;

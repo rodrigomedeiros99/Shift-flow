@@ -12,6 +12,7 @@ const ACTION_LABELS: Record<string, string> = {
   close_shift: 'Closed shift',
   moved_associate: 'Moved associate',
   switched_assignment: 'Switched assignment',
+  delete_draft: 'Deleted draft',
 };
 
 const stamp = (iso: string) =>

@@ -11,6 +11,7 @@ import {
   listSpecialAssignments,
 } from '@/features/planning/queries';
 import { listActivity } from '@/features/live/queries';
+import { formatDateUS } from '@/lib/utils/date';
 
 export default async function LivePlanWorkspacePage({
   params,
@@ -52,7 +53,7 @@ export default async function LivePlanWorkspacePage({
     <>
       <PageHeader
         title={`${deptName} — ${keyName}`}
-        description={`Live operations · ${plan.planDate}`}
+        description={`Live operations · ${formatDateUS(plan.planDate)}`}
       />
       <LiveWorkspace
         plan={plan}

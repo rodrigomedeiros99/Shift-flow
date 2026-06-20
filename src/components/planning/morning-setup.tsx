@@ -20,7 +20,7 @@ import {
   addSpecialAssignment,
   addTrainingPair,
   removeSpecialAssignment,
-  saveCallOffs,
+  saveNotAvailable,
   setMiddleMileOwner,
 } from '@/features/planning/actions';
 import type {
@@ -45,6 +45,90 @@ interface MorningSetupProps {
 }
 
 type AddKind = Exclude<SpecialAssignmentType, never>;
+
+/**
+ * "Not Available" — the single absence section. The reason (call-off / vacation /
+ * time off) doesn't matter for plan generation; the planner only marks who can't
+ * be assigned today, and they're removed from the available pool.
+ */
+function NotAvailableCard({
+  planId,
+  associates,
+  initialIds,
+}: {
+  planId: string;
+  associates: Associate[];
+  initialIds: string[];
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [pending, setPending] = useState(false);
+  const [checked, setChecked] = useState<Set<string>>(
+    () => new Set(initialIds),
+  );
+
+  function toggle(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function save() {
+    setPending(true);
+    const result = await saveNotAvailable(planId, [...checked]);
+    setPending(false);
+    if (result.ok) {
+      toast({ title: 'Not Available saved' });
+      router.refresh();
+    } else {
+      toast({
+        title: 'Could not save',
+        description: result.error,
+        variant: 'error',
+      });
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between">
+        <CardTitle>
+          Not Available
+          {checked.size > 0 ? (
+            <span className="text-foreground-subtle ml-2 text-sm font-normal">
+              {checked.size} selected
+            </span>
+          ) : null}
+        </CardTitle>
+        <Button size="sm" onClick={save} disabled={pending}>
+          Save
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {associates.length === 0 ? (
+          <p className="text-foreground-muted text-sm">
+            No eligible associates for this department and key.
+          </p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {associates.map((a) => (
+              <Checkbox
+                key={a.id}
+                id={`unavailable-${a.id}`}
+                label={fullName(a)}
+                checked={checked.has(a.id)}
+                onChange={() => toggle(a.id)}
+              />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 const fullName = (a: Associate) => `${a.firstName} ${a.lastName}`;
 
@@ -163,35 +247,8 @@ export function MorningSetup({
     [tasks],
   );
 
-  // --- Call-offs ---
-  const [calledOff, setCalledOff] = useState<Set<string>>(
-    () => new Set(callOffs.map((c) => c.associateId)),
-  );
-
-  function toggleCallOff(id: string) {
-    setCalledOff((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  async function persistCallOffs() {
-    setPending(true);
-    const result = await saveCallOffs(planId, [...calledOff]);
-    setPending(false);
-    if (result.ok) {
-      toast({ title: 'Call-offs saved' });
-      router.refresh();
-    } else {
-      toast({
-        title: 'Could not save',
-        description: result.error,
-        variant: 'error',
-      });
-    }
-  }
+  // Everyone marked unavailable today, regardless of original reason.
+  const notAvailableIds = callOffs.map((c) => c.associateId);
 
   // --- Add special modal ---
   const [adding, setAdding] = useState<AddKind | null>(null);
@@ -267,32 +324,42 @@ export function MorningSetup({
 
   return (
     <div className="space-y-6">
-      {/* Call-offs */}
+      {/* Not Available — removes the associate from the available pool. */}
+      <NotAvailableCard
+        planId={planId}
+        associates={associates}
+        initialIds={notAvailableIds}
+      />
+
+      {/* Overtime + Training */}
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>Call-offs</CardTitle>
-          <Button size="sm" onClick={persistCallOffs} disabled={pending}>
-            Save call-offs
-          </Button>
+        <CardHeader>
+          <CardTitle>Overtime &amp; training</CardTitle>
         </CardHeader>
-        <CardContent>
-          {associates.length === 0 ? (
-            <p className="text-foreground-muted text-sm">
-              No eligible associates for this department and key.
-            </p>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {associates.map((a) => (
-                <Checkbox
-                  key={a.id}
-                  id={`calloff-${a.id}`}
-                  label={fullName(a)}
-                  checked={calledOff.has(a.id)}
-                  onChange={() => toggleCallOff(a.id)}
-                />
-              ))}
-            </div>
-          )}
+        <CardContent className="space-y-6">
+          <SpecialSection
+            title="Overtime"
+            addLabel="Add overtime"
+            rows={byType('overtime')}
+            onAdd={() => openAdd('overtime')}
+            {...sectionProps}
+          />
+          <SpecialSection
+            title="Training"
+            addLabel="Add pair"
+            rows={byType('training')}
+            onAdd={() => openAdd('training')}
+            {...sectionProps}
+          />
+          {isInbound ? (
+            <SpecialSection
+              title="Support Outbound"
+              addLabel="Add"
+              rows={byType('support_outbound')}
+              onAdd={() => openAdd('support_outbound')}
+              {...sectionProps}
+            />
+          ) : null}
         </CardContent>
       </Card>
 
@@ -348,28 +415,13 @@ export function MorningSetup({
         </CardContent>
       </Card>
 
-      {/* Overtime / ICQA / Training */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Support &amp; exceptions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <SpecialSection
-            title="Overtime"
-            addLabel="Add overtime"
-            rows={byType('overtime')}
-            onAdd={() => openAdd('overtime')}
-            {...sectionProps}
-          />
-          {isInbound ? (
-            <SpecialSection
-              title="Support Outbound"
-              addLabel="Add"
-              rows={byType('support_outbound')}
-              onAdd={() => openAdd('support_outbound')}
-              {...sectionProps}
-            />
-          ) : (
+      {/* ICQA Support (outbound) */}
+      {!isInbound ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>ICQA Support</CardTitle>
+          </CardHeader>
+          <CardContent>
             <SpecialSection
               title="ICQA support"
               addLabel="Add"
@@ -377,16 +429,9 @@ export function MorningSetup({
               onAdd={() => openAdd('icqa_support')}
               {...sectionProps}
             />
-          )}
-          <SpecialSection
-            title="Training"
-            addLabel="Add pair"
-            rows={byType('training')}
-            onAdd={() => openAdd('training')}
-            {...sectionProps}
-          />
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Modal
         open={adding !== null}

@@ -88,6 +88,21 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   status_changed: 'Status',
 };
 
+/** Why an associate is unavailable for planning (call_offs.type, migration 0011). */
+export const ABSENCE_TYPES = [
+  'call_off',
+  'vacation',
+  'scheduled_time_off',
+] as const;
+
+export type AbsenceType = (typeof ABSENCE_TYPES)[number];
+
+export const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
+  call_off: 'Call-offs',
+  vacation: 'Vacation',
+  scheduled_time_off: 'Scheduled Time Off',
+};
+
 /** Lifecycle of a daily plan (Database Schema Part 2: daily_plans.status). */
 export const PLAN_STATUSES = [
   'draft',

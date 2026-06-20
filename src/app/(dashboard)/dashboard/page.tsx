@@ -1,25 +1,62 @@
 import Link from 'next/link';
-import { CalendarPlus } from 'lucide-react';
+import { CalendarPlus, Users, UserCheck, UserX, Clock } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge, Button, Card, CardContent, EmptyState } from '@/components/ui';
-import { listDepartments, listShiftKeys } from '@/features/config/queries';
-import { listTodayPlans } from '@/features/planning/queries';
+import { DashboardFilters } from '@/components/dashboard/dashboard-filters';
+import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
+import { DraftDeleteButton } from '@/components/planning/draft-delete-button';
+import { listShiftKeys } from '@/features/config/queries';
+import {
+  getDashboardData,
+  type DashboardFilter,
+} from '@/features/dashboard/queries';
+import { formatDateUS, todayISO } from '@/lib/utils/date';
+import type { DepartmentKind } from '@/lib/constants/departments';
 
-export default async function DashboardPage() {
-  const [todayPlans, departments, shiftKeys] = await Promise.all([
-    listTodayPlans(),
-    listDepartments(),
-    listShiftKeys(),
-  ]);
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-  const deptName = new Map(departments.map((d) => [d.id, d.name]));
-  const keyName = new Map(shiftKeys.map((k) => [k.id, k.name]));
+const str = (
+  sp: Record<string, string | string[] | undefined>,
+  key: string,
+): string => {
+  const v = sp[key];
+  return typeof v === 'string' ? v : '';
+};
+
+const KPIS: {
+  key: 'associates' | 'assigned' | 'callOffs' | 'overtime';
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { key: 'associates', label: 'Total associates', icon: Users },
+  { key: 'assigned', label: 'Assigned', icon: UserCheck },
+  { key: 'callOffs', label: 'Call-offs', icon: UserX },
+  { key: 'overtime', label: 'Overtime', icon: Clock },
+];
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const [sp, shiftKeys] = await Promise.all([searchParams, listShiftKeys()]);
+
+  const kindRaw = str(sp, 'kind');
+  const kind: '' | DepartmentKind =
+    kindRaw === 'inbound' || kindRaw === 'outbound' ? kindRaw : '';
+  const filter: DashboardFilter = {
+    deptKind: kind,
+    shiftKeyId: str(sp, 'key'),
+    date: str(sp, 'date') || todayISO(),
+  };
+  const data = await getDashboardData(filter);
 
   return (
     <>
       <PageHeader
         title="Dashboard"
-        description="Live overview of today's labor plans and workforce allocation."
+        description="Live overview of labor plans, allocation, and workforce status."
         actions={
           <Link href="/create-plan">
             <Button size="sm" className="gap-2">
@@ -30,37 +67,101 @@ export default async function DashboardPage() {
         }
       />
 
-      {todayPlans.length === 0 ? (
-        <EmptyState
-          icon={CalendarPlus}
-          title="No shift plans for today yet"
-          description="Create an outbound plan to get started. Published plans will appear here and on TV Mode."
+      <div className="space-y-6">
+        <DashboardFilters
+          shiftKeys={shiftKeys}
+          current={{ kind, key: filter.shiftKeyId, date: filter.date }}
         />
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {todayPlans.map((plan) => (
-            <Link key={plan.id} href={`/create-plan/${plan.id}`}>
-              <Card className="hover:border-primary/50 transition-colors">
-                <CardContent className="flex items-center justify-between">
-                  <div>
-                    <p className="text-foreground font-medium">
-                      {deptName.get(plan.departmentId) ?? '—'}
-                    </p>
-                    <p className="text-foreground-muted text-sm">
-                      {keyName.get(plan.shiftKeyId) ?? '—'}
-                    </p>
-                  </div>
-                  <Badge
-                    tone={plan.status === 'published' ? 'success' : 'neutral'}
-                  >
-                    {plan.status === 'published' ? 'Published' : 'Draft'}
-                  </Badge>
-                </CardContent>
-              </Card>
-            </Link>
+
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {KPIS.map(({ key, label, icon: Icon }) => (
+            <Card key={key}>
+              <CardContent className="flex items-center gap-4">
+                <span className="bg-primary/10 text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-lg">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-foreground text-2xl font-semibold tabular-nums">
+                    {data.totals[key]}
+                  </p>
+                  <p className="text-foreground-muted text-xs">{label}</p>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
-      )}
+
+        <DashboardCharts byTask={data.byTask} byStatus={data.byStatus} />
+
+        <section className="space-y-3">
+          <h2 className="text-foreground text-lg font-semibold">
+            Plans for {formatDateUS(data.date)}
+          </h2>
+          {data.plans.length === 0 ? (
+            <EmptyState
+              icon={CalendarPlus}
+              title="No plans for this scope"
+              description="Adjust the filters or create a plan."
+            />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {data.plans.map((plan) => {
+                const live = plan.status === 'published';
+                const href = live
+                  ? `/live-plan/${plan.id}`
+                  : `/create-plan/${plan.id}`;
+                return (
+                  <Card
+                    key={plan.id}
+                    className="hover:border-primary/50 transition-colors"
+                  >
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-foreground font-medium">
+                            {plan.departmentName}
+                          </p>
+                          <p className="text-foreground-muted text-sm">
+                            {plan.keyName}
+                          </p>
+                        </div>
+                        <Badge
+                          tone={
+                            plan.status === 'published'
+                              ? 'success'
+                              : plan.status === 'closed'
+                                ? 'neutral'
+                                : 'warning'
+                          }
+                        >
+                          {plan.status}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Link href={`/create-plan/${plan.id}`}>
+                          <Button size="sm" variant="outline">
+                            Edit plan
+                          </Button>
+                        </Link>
+                        {live ? (
+                          <Link href={href}>
+                            <Button size="sm" variant="secondary">
+                              Manage live
+                            </Button>
+                          </Link>
+                        ) : null}
+                        {plan.status === 'draft' ? (
+                          <DraftDeleteButton planId={plan.id} />
+                        ) : null}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
     </>
   );
 }

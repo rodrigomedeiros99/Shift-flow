@@ -92,6 +92,7 @@ interface ShiftKeyRow {
   start_time: string;
   end_time: string;
   days_of_week: string;
+  productive_hours: number | string | null;
   active: boolean;
 }
 
@@ -99,7 +100,9 @@ export async function listShiftKeys(): Promise<ShiftKey[]> {
   const supabase = await db();
   const { data, error } = await supabase
     .from('shift_keys')
-    .select('id, facility_id, name, start_time, end_time, days_of_week, active')
+    .select(
+      'id, facility_id, name, start_time, end_time, days_of_week, productive_hours, active',
+    )
     .order('name');
   if (error) fail('shift keys', error.message);
   return ((data as ShiftKeyRow[] | null) ?? []).map((r) => ({
@@ -109,6 +112,8 @@ export async function listShiftKeys(): Promise<ShiftKey[]> {
     startTime: r.start_time,
     endTime: r.end_time,
     daysOfWeek: r.days_of_week,
+    productiveHours:
+      r.productive_hours === null ? null : Number(r.productive_hours),
     active: r.active,
   }));
 }
@@ -119,6 +124,9 @@ interface TaskRow {
   department_id: string;
   name: string;
   default_equipment_id: string | null;
+  needs_dock_door: boolean;
+  uses_uph: boolean;
+  avg_units_per_hour: number | string | null;
   active: boolean;
   sort_order: number;
   created_at: string;
@@ -129,7 +137,7 @@ export async function listTasks(): Promise<TaskType[]> {
   const { data, error } = await supabase
     .from('task_types')
     .select(
-      'id, facility_id, department_id, name, default_equipment_id, active, sort_order, created_at',
+      'id, facility_id, department_id, name, default_equipment_id, needs_dock_door, uses_uph, avg_units_per_hour, active, sort_order, created_at',
     )
     .order('sort_order')
     .order('name');
@@ -140,6 +148,10 @@ export async function listTasks(): Promise<TaskType[]> {
     departmentId: r.department_id,
     name: r.name,
     defaultEquipmentId: r.default_equipment_id,
+    needsDockDoor: r.needs_dock_door,
+    usesUph: r.uses_uph,
+    avgUnitsPerHour:
+      r.avg_units_per_hour === null ? null : Number(r.avg_units_per_hour),
     active: r.active,
     sortOrder: r.sort_order,
     createdAt: r.created_at,

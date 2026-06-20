@@ -17,6 +17,7 @@ import {
   CardTitle,
   ConfirmDialog,
   EmptyState,
+  IconButton,
   Input,
   Modal,
   Select,
@@ -270,26 +271,28 @@ export function LiveBoard({
           description="Assign associates from the available pool to get the floor moving."
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-6">
           {orderedKeys.map((key) => (
-            <Card key={key}>
-              <CardHeader className="py-3">
-                <CardTitle className="text-sm">
+            <section key={key} className="space-y-3">
+              {/* Strong, high-contrast task/door label (request F.4) */}
+              <div className="flex items-center gap-2">
+                <span className="bg-primary text-primary-foreground rounded-md px-3 py-1 text-base font-bold tracking-wide uppercase">
                   {groupLabel(key)}
-                  <span className="text-foreground-subtle ml-1 font-normal">
-                    ({groups.get(key)!.length})
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 p-3">
+                </span>
+                <span className="text-foreground-subtle text-sm">
+                  {groups.get(key)!.length}
+                </span>
+              </div>
+              {/* Cards expand horizontally within the section (request F.3) */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {groups.get(key)!.map((a) => (
                   <div
                     key={a.id}
-                    className="border-border rounded-md border p-3"
+                    className="border-border bg-surface rounded-lg border p-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-foreground truncate font-medium">
+                        <p className="text-foreground truncate font-semibold">
                           {nameOf.get(a.associateId) ?? '—'}
                         </p>
                         <p className="text-foreground-muted text-xs">
@@ -322,61 +325,58 @@ export function LiveBoard({
                           />
                         </div>
                         <div className="mt-2 flex items-center justify-end gap-1">
-                          <button
-                            type="button"
+                          <IconButton
+                            label="Complete (return to pool)"
+                            tone="success"
+                            disabled={pending}
                             onClick={() =>
                               run(
                                 () => completeAssignment(a.id, planId),
                                 'Marked complete',
                               )
                             }
-                            disabled={pending}
-                            className="text-foreground-muted hover:bg-surface-raised hover:text-success rounded-md p-1.5"
-                            aria-label="Complete"
-                            title="Complete (return to pool)"
-                          >
-                            <CheckCircle2
-                              className="h-4 w-4"
-                              aria-hidden="true"
-                            />
-                          </button>
-                          <button
-                            type="button"
+                            icon={
+                              <CheckCircle2
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                              />
+                            }
+                          />
+                          <IconButton
+                            label="Move"
                             onClick={() => openMove(a)}
-                            className="text-foreground-muted hover:bg-surface-raised hover:text-foreground rounded-md p-1.5"
-                            aria-label="Move"
-                          >
-                            <Pencil className="h-4 w-4" aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
+                            icon={
+                              <Pencil className="h-4 w-4" aria-hidden="true" />
+                            }
+                          />
+                          <IconButton
+                            label="Switch"
                             onClick={() => {
                               setSwitching(a);
                               setSwitchTarget('');
                             }}
-                            className="text-foreground-muted hover:bg-surface-raised hover:text-foreground rounded-md p-1.5"
-                            aria-label="Switch"
-                          >
-                            <ArrowLeftRight
-                              className="h-4 w-4"
-                              aria-hidden="true"
-                            />
-                          </button>
-                          <button
-                            type="button"
+                            icon={
+                              <ArrowLeftRight
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                              />
+                            }
+                          />
+                          <IconButton
+                            label="Remove"
+                            tone="danger"
                             onClick={() => setRemoving(a)}
-                            className="text-foreground-muted hover:bg-surface-raised hover:text-danger rounded-md p-1.5"
-                            aria-label="Remove"
-                          >
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          </button>
+                            icon={
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            }
+                          />
                         </div>
                       </>
                     ) : null}
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           ))}
         </div>
       )}

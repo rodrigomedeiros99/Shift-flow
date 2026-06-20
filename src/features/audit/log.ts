@@ -15,7 +15,8 @@ export type AuditAction =
   | 'publish_plan'
   | 'close_shift'
   | 'moved_associate'
-  | 'switched_assignment';
+  | 'switched_assignment'
+  | 'delete_draft';
 
 interface LogAuditInput {
   actionType: AuditAction;

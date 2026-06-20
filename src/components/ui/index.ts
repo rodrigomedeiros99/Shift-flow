@@ -1,4 +1,5 @@
 export { Button, type ButtonVariant, type ButtonSize } from './button';
+export { IconButton } from './icon-button';
 export {
   Card,
   CardHeader,
@@ -13,6 +14,7 @@ export { Skeleton } from './skeleton';
 export { EmptyState } from './empty-state';
 export { ErrorState } from './error-state';
 export { Input } from './input';
+export { NumberStepper } from './number-stepper';
 export { Label } from './label';
 export { Select } from './select';
 export { Checkbox } from './checkbox';

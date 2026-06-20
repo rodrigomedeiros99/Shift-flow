@@ -13,9 +13,9 @@ function resolveView(value: string | null): TvView {
 }
 
 /**
- * TV Mode screen (Phase 8): read-only, distance-readable board of today's
- * published plans. View + present state live in the URL; Supabase Realtime keeps
- * it current without a manual refresh.
+ * TV Mode screen (Phase 8): read-only, distance-readable Operations Command
+ * Center of today's published plans. View + present state live in the URL;
+ * Supabase Realtime keeps it current without a manual refresh.
  */
 export function TvScreen({
   board,
@@ -36,12 +36,18 @@ export function TvScreen({
   ];
 
   return (
-    <div className={present ? 'px-8 py-8 md:px-14' : 'px-6 py-5 md:px-10'}>
+    // Large displays fill the screen with no scrolling; phones/tablets scroll
+    // with a responsive layout (request: TV responsive behavior).
+    <div
+      className={`bg-background flex min-h-screen flex-col lg:h-screen lg:overflow-hidden ${present ? 'px-6 py-5 md:px-10' : 'px-5 py-4 md:px-8'}`}
+    >
       <TvControls view={view} present={present} />
 
-      <main className="mt-8 space-y-14">
+      {/* Fills the screen; scrolls only if a large shift exceeds it (never
+          hides associates). */}
+      <main className="mt-3 flex-1 lg:min-h-0 lg:overflow-auto">
         {sections.length === 0 ? (
-          <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+          <div className="flex h-full flex-col items-center justify-center py-24 text-center">
             <p className="text-foreground text-4xl font-semibold">
               No published plans for today
             </p>
@@ -50,7 +56,12 @@ export function TvScreen({
             </p>
           </div>
         ) : (
-          sections.map((v) => <TvSection key={v.planId} view={v} />)
+          // Full view stacks Outbound (top) then Inbound (bottom), full width.
+          <div className="flex min-h-full flex-col gap-5">
+            {sections.map((v) => (
+              <TvSection key={v.planId} view={v} />
+            ))}
+          </div>
         )}
       </main>
     </div>

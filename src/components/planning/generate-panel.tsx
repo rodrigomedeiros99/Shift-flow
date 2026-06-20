@@ -10,46 +10,30 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Select,
   useToast,
 } from '@/components/ui';
-import { Field } from '@/components/config/field';
-import {
-  autoGeneratePlan,
-  type GenerateSource,
-} from '@/features/planning/actions';
-import type { PlanTemplate } from '@/types/domain';
+import { autoGeneratePlan } from '@/features/planning/actions';
 
 interface GeneratePanelProps {
   planId: string;
-  templates: PlanTemplate[];
   /** Rotation lookback window (days) chosen in the workspace. */
   lookbackDays: number;
 }
 
 /**
- * Step 4–5: choose a starting point and auto-generate the planned board.
- * Re-running replaces the planned assignments (special assignments are kept).
- * Auto-generate applies fair rotation (PRD §7) and reports a rotation score.
+ * Auto-generate the planned board from the staffing needs (and, for inbound,
+ * the active dock doors), respecting equipment certifications and fair
+ * rotation. Re-running replaces the planned assignments; special assignments
+ * and staffing needs are kept.
  */
-export function GeneratePanel({
-  planId,
-  templates,
-  lookbackDays,
-}: GeneratePanelProps) {
+export function GeneratePanel({ planId, lookbackDays }: GeneratePanelProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [pending, setPending] = useState(false);
-  // '' = blank; otherwise a template id.
-  const [choice, setChoice] = useState('');
 
   async function generate() {
     setPending(true);
-    const source: GenerateSource =
-      choice === ''
-        ? { type: 'blank' }
-        : { type: 'template', templateId: choice };
-    const result = await autoGeneratePlan(planId, source, lookbackDays);
+    const result = await autoGeneratePlan(planId, lookbackDays);
     setPending(false);
     if (result.ok) {
       toast({
@@ -71,28 +55,14 @@ export function GeneratePanel({
       <CardHeader>
         <CardTitle>Auto-generate</CardTitle>
         <CardDescription>
-          Fill the board from a template (respecting equipment certifications),
-          or start blank and assign from the pool.
+          Fill the board from the staffing needs above, respecting equipment
+          certifications and fair rotation. You can review and adjust afterward.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <Field label="Starting point" htmlFor="gen-source">
-          <Select
-            id="gen-source"
-            value={choice}
-            onChange={(e) => setChoice(e.target.value)}
-          >
-            <option value="">Blank (assign manually)</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+      <CardContent>
         <Button onClick={generate} disabled={pending} className="gap-2">
           <Wand2 className="h-4 w-4" aria-hidden="true" />
-          {pending ? 'Generating…' : 'Auto-generate plan'}
+          {pending ? 'Generating…' : 'Auto Generate Plan'}
         </Button>
       </CardContent>
     </Card>
