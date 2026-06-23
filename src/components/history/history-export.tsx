@@ -104,8 +104,10 @@ export function HistoryExport({ data }: { data: HistoryExportData }) {
     const { jsPDF } = await import('jspdf');
     const autoTable = (await import('jspdf-autotable')).default;
     const generatedAt = new Date().toLocaleString();
+    // Portrait A4 (request §4). Narrower width, so the header/filters stack and
+    // the detail table drops the least-important "By" column.
     const doc = new jsPDF({
-      orientation: 'landscape',
+      orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
     });
@@ -123,31 +125,35 @@ export function HistoryExport({ data }: { data: HistoryExportData }) {
     doc.text(`Facility: ${data.facilityName}`, margin, 29);
     doc.text(`Generated: ${generatedAt}`, margin, 34);
 
-    // Applied filters (right column)
+    // Applied filters (stacked below the header — portrait has no room for a
+    // second column).
+    let y = 42;
     doc.setFont('helvetica', 'bold');
-    doc.text('Filters', pageW / 2, 29);
+    doc.text('Applied filters', margin, y);
+    y += 5;
     doc.setFont('helvetica', 'normal');
-    data.filters.forEach((f, i) => {
-      doc.text(`${f.label}: ${f.value}`, pageW / 2, 34 + i * 4.5);
+    data.filters.forEach((f) => {
+      doc.text(`${f.label}: ${f.value}`, margin, y);
+      y += 4.5;
     });
+    y += 3;
 
-    // Summary + task usage bar chart
-    let y = Math.max(44, 34 + data.filters.length * 4.5 + 4);
+    // Summary + task usage bar chart (sized for portrait width).
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.text(`Task usage  ·  ${data.rows.length} records`, margin, y);
-    y += 4;
+    y += 5;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
 
     const top = data.taskUsage.slice(0, 10);
     const maxVal = Math.max(1, ...top.map((t) => t.value));
-    const labelW = 40;
-    const barMaxW = 90;
+    const labelW = 38;
+    const barMaxW = 110;
     const rowH = 5.5;
     top.forEach((t) => {
       const barW = (t.value / maxVal) * barMaxW;
-      doc.text(t.label.slice(0, 24), margin, y + 3.4);
+      doc.text(t.label.slice(0, 22), margin, y + 3.4);
       doc.setFillColor(249, 99, 2); // Home Depot orange
       doc.rect(margin + labelW, y, Math.max(0.5, barW), 4, 'F');
       doc.text(
@@ -162,10 +168,13 @@ export function HistoryExport({ data }: { data: HistoryExportData }) {
       y += rowH;
     }
 
-    // Detail table (paginates automatically)
+    // Detail table — paginates automatically, repeats the header on each page,
+    // and wraps long cells. Portrait drops "By" (kept in Excel) to fit the 8
+    // most-important columns without cut-off.
+    const pdfColumns = HISTORY_TABLE_COLUMNS.slice(0, 8);
     autoTable(doc, {
       startY: y + 4,
-      head: [[...HISTORY_TABLE_COLUMNS]],
+      head: [[...pdfColumns]],
       body: data.rows.map((r) => [
         formatDateUS(r.date),
         r.associate,
@@ -175,10 +184,19 @@ export function HistoryExport({ data }: { data: HistoryExportData }) {
         r.equipment,
         r.source,
         r.action,
-        r.by,
       ]),
-      styles: { fontSize: 7.5, cellPadding: 1.5 },
+      styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
       headStyles: { fillColor: [249, 99, 2], textColor: 255 },
+      columnStyles: {
+        0: { cellWidth: 20 }, // Date
+        1: { cellWidth: 30 }, // Associate
+        2: { cellWidth: 26 }, // Department
+        3: { cellWidth: 14 }, // Key
+        4: { cellWidth: 26 }, // Task
+        5: { cellWidth: 26 }, // Equipment
+        6: { cellWidth: 16 }, // Source
+        7: { cellWidth: 18 }, // Action
+      },
       margin: { left: margin, right: margin },
       didDrawPage: (hook) => {
         const page = doc.getNumberOfPages();

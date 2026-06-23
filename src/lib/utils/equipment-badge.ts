@@ -12,13 +12,13 @@ export function getEquipmentBadgeClass(
 ): string {
   const n = (equipmentName ?? '').toLowerCase();
   if (n.includes('clamp')) {
-    return 'border-green-400 bg-green-100 text-green-900 dark:border-green-500/50 dark:bg-green-500/20 dark:text-green-200';
+    return 'border-green-400 bg-green-100/50 text-green-900 dark:border-green-500/50 dark:bg-green-500/20 dark:text-green-200';
   }
   if (n.includes('pacer')) {
-    return 'border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-200';
+    return 'border-blue-400 bg-blue-100/50 text-blue-900 dark:border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-200';
   }
   if (n.includes('walk')) {
-    return 'border-purple-400 bg-purple-100 text-purple-900 dark:border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-200';
+    return 'border-purple-400 bg-purple-100/50 text-purple-900 dark:border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-200';
   }
   return 'border-border bg-surface-raised text-foreground-muted';
 }

@@ -15,6 +15,7 @@ import type {
   Assignment,
   CallOff,
   DailyPlan,
+  Department,
   SpecialAssignment,
 } from '@/types/domain';
 import type { DepartmentKind } from '@/lib/constants/departments';
@@ -26,6 +27,7 @@ interface LiveWorkspaceProps {
   assignments: Assignment[];
   callOffs: CallOff[];
   specials: SpecialAssignment[];
+  departments: Department[];
   activity: ActivityHistory[];
 }
 
@@ -40,6 +42,7 @@ export function LiveWorkspace({
   assignments,
   callOffs,
   specials,
+  departments,
   activity,
 }: LiveWorkspaceProps) {
   const router = useRouter();
@@ -122,6 +125,7 @@ export function LiveWorkspace({
         dockDoors={inputs.dockDoors}
         callOffs={callOffs}
         specials={specials}
+        departments={departments}
         groupBy={groupBy}
         readOnly={closed}
       />

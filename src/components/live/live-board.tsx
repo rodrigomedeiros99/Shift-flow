@@ -8,8 +8,11 @@ import {
   Pencil,
   Plus,
   Trash2,
+  UserPlus,
+  UserX,
 } from 'lucide-react';
 import {
+  Badge,
   Button,
   Card,
   CardContent,
@@ -30,6 +33,7 @@ import {
   addLiveAssignment,
   completeAssignment,
   moveAssignment,
+  removeFromNotAvailable,
   removeLiveAssignment,
   setAssignmentStatus,
   switchLive,
@@ -38,12 +42,16 @@ import type {
   Assignment,
   Associate,
   CallOff,
+  Department,
   DockDoor,
   EquipmentType,
   SpecialAssignment,
   TaskType,
 } from '@/types/domain';
-import type { AssignmentType } from '@/lib/constants/assignments';
+import {
+  ABSENCE_TYPE_LABELS,
+  type AssignmentType,
+} from '@/lib/constants/assignments';
 
 interface LiveBoardProps {
   planId: string;
@@ -54,6 +62,7 @@ interface LiveBoardProps {
   dockDoors: DockDoor[];
   callOffs: CallOff[];
   specials: SpecialAssignment[];
+  departments: Department[];
   groupBy: 'task' | 'door';
   readOnly?: boolean;
 }
@@ -76,6 +85,7 @@ export function LiveBoard({
   dockDoors,
   callOffs,
   specials,
+  departments,
   groupBy,
   readOnly = false,
 }: LiveBoardProps) {
@@ -106,16 +116,45 @@ export function LiveBoard({
     [assignments],
   );
 
-  const pool = useMemo(() => {
-    const occupied = new Set<string>();
-    for (const a of active) occupied.add(a.associateId);
-    for (const c of callOffs) occupied.add(c.associateId);
+  const deptName = useMemo(
+    () => new Map(departments.map((d) => [d.id, d.name])),
+    [departments],
+  );
+
+  // Associates committed to live work or a special assignment (on the floor).
+  const occupied = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of active) set.add(a.associateId);
     for (const s of specials) {
-      occupied.add(s.associateId);
-      if (s.relatedAssociateId) occupied.add(s.relatedAssociateId);
+      set.add(s.associateId);
+      if (s.relatedAssociateId) set.add(s.relatedAssociateId);
     }
-    return associates.filter((a) => !occupied.has(a.id));
-  }, [active, associates, callOffs, specials]);
+    return set;
+  }, [active, specials]);
+
+  const callOffById = useMemo(
+    () => new Map(callOffs.map((c) => [c.associateId, c])),
+    [callOffs],
+  );
+
+  // Normal available pool excludes Not Available people (unchanged behavior).
+  const pool = useMemo(
+    () =>
+      associates.filter((a) => !occupied.has(a.id) && !callOffById.has(a.id)),
+    [associates, occupied, callOffById],
+  );
+
+  // Not Available associates who haven't been put on the floor yet — eligible
+  // for manual assignment in Live Plan (late arrivals), with a confirmation.
+  const notAvailable = useMemo(
+    () =>
+      associates.filter((a) => callOffById.has(a.id) && !occupied.has(a.id)),
+    [associates, callOffById, occupied],
+  );
+  const notAvailableIds = useMemo(
+    () => new Set(notAvailable.map((a) => a.id)),
+    [notAvailable],
+  );
 
   const groups = useMemo(() => {
     const map = new Map<string, Assignment[]>();
@@ -227,6 +266,7 @@ export function LiveBoard({
   const [aTask, setATask] = useState('');
   const [aEquip, setAEquip] = useState('');
   const [aDoor, setADoor] = useState('');
+  const [confirmNotAvail, setConfirmNotAvail] = useState(false);
   function openAssign(associateId = '') {
     setAAssoc(associateId);
     setAType('planned');
@@ -235,7 +275,7 @@ export function LiveBoard({
     setADoor('');
     setAssigning(true);
   }
-  async function submitAssign() {
+  async function doAssign() {
     const okDone = await run(
       () =>
         addLiveAssignment(
@@ -250,7 +290,30 @@ export function LiveBoard({
         ),
       'Assigned',
     );
-    if (okDone) setAssigning(false);
+    if (okDone) {
+      setAssigning(false);
+      setConfirmNotAvail(false);
+    }
+  }
+  function submitAssign() {
+    if (!aAssoc) return;
+    // Assigning a Not Available associate (late arrival) needs confirmation.
+    if (notAvailableIds.has(aAssoc)) {
+      setConfirmNotAvail(true);
+      return;
+    }
+    void doAssign();
+  }
+
+  // --- Remove from Not Available (no assignment) ---
+  const [removingNA, setRemovingNA] = useState<Associate | null>(null);
+  async function confirmRemoveNA() {
+    if (!removingNA) return;
+    const okDone = await run(
+      () => removeFromNotAvailable(planId, removingNA.id),
+      'Removed from Not Available',
+    );
+    if (okDone) setRemovingNA(null);
   }
 
   return (
@@ -424,6 +487,74 @@ export function LiveBoard({
         </CardContent>
       </Card>
 
+      {/* Not Available Today */}
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-sm">
+            Not Available Today
+            <span className="text-foreground-subtle ml-1 font-normal">
+              ({notAvailable.length})
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3">
+          {notAvailable.length === 0 ? (
+            <p className="text-foreground-subtle text-sm">
+              No one is marked Not Available for this plan.
+            </p>
+          ) : (
+            <ul className="divide-border divide-y">
+              {notAvailable.map((a) => {
+                const c = callOffById.get(a.id);
+                return (
+                  <li
+                    key={a.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2 first:pt-0 last:pb-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-foreground flex items-center gap-2 text-sm font-medium">
+                        {fullName(a)}
+                        <Badge tone="warning">Not Available</Badge>
+                      </p>
+                      <p className="text-foreground-muted text-xs">
+                        {deptName.get(a.departmentId) ?? '—'}
+                        {c ? ` · ${ABSENCE_TYPE_LABELS[c.type]}` : ''}
+                        {c?.reason ? ` · ${c.reason}` : ''}
+                      </p>
+                    </div>
+                    {!readOnly ? (
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="gap-1.5"
+                          disabled={pending}
+                          onClick={() => openAssign(a.id)}
+                        >
+                          <UserPlus
+                            className="h-3.5 w-3.5"
+                            aria-hidden="true"
+                          />
+                          Assign anyway
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={pending}
+                          onClick={() => setRemovingNA(a)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Move modal */}
       <Modal
         open={moving !== null}
@@ -567,13 +698,33 @@ export function LiveBoard({
               onChange={(e) => setAAssoc(e.target.value)}
             >
               <option value="">Select an associate</option>
-              {pool.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {fullName(a)}
-                </option>
-              ))}
+              {pool.length > 0 ? (
+                <optgroup label="Available">
+                  {pool.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {fullName(a)}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {notAvailable.length > 0 ? (
+                <optgroup label="Marked Not Available">
+                  {notAvailable.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {fullName(a)} — Not Available
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </Select>
           </Field>
+          {notAvailableIds.has(aAssoc) ? (
+            <p className="text-warning flex items-center gap-1.5 text-xs">
+              <UserX className="h-3.5 w-3.5" aria-hidden="true" />
+              This associate was marked Not Available for this plan. You&apos;ll
+              confirm before assigning.
+            </p>
+          ) : null}
           <Field label="Type" htmlFor="as-type">
             <Select
               id="as-type"
@@ -645,6 +796,32 @@ export function LiveBoard({
         pending={pending}
         onConfirm={confirmRemove}
         onCancel={() => setRemoving(null)}
+      />
+
+      {/* Assign a Not Available associate (late arrival) */}
+      <ConfirmDialog
+        open={confirmNotAvail}
+        title="Assign a Not Available associate?"
+        description={`${nameOf.get(aAssoc) ?? 'This associate'} was marked Not Available for this plan. Assigning them will also remove their Not Available status. Are you sure you want to assign them?`}
+        confirmLabel="Assign anyway"
+        pending={pending}
+        onConfirm={doAssign}
+        onCancel={() => setConfirmNotAvail(false)}
+      />
+
+      {/* Remove from Not Available (no assignment) */}
+      <ConfirmDialog
+        open={!!removingNA}
+        title="Remove from Not Available?"
+        description={
+          removingNA
+            ? `${fullName(removingNA)} will return to the available pool for this plan.`
+            : ''
+        }
+        confirmLabel="Remove"
+        pending={pending}
+        onConfirm={confirmRemoveNA}
+        onCancel={() => setRemovingNA(null)}
       />
     </div>
   );

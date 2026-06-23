@@ -312,6 +312,14 @@ export async function addLiveAssignment(
   });
   if (error) return dbFail();
 
+  // A late arrival assigned in Live Plan is no longer absent — clear any
+  // Not Available marker for this plan so they don't show in both lists.
+  await supabase
+    .from('call_offs')
+    .delete()
+    .eq('daily_plan_id', planId)
+    .eq('associate_id', parsed.data.associateId);
+
   await logActivity(supabase, {
     planId,
     associateId: parsed.data.associateId,
@@ -321,6 +329,36 @@ export async function addLiveAssignment(
   });
   revalidate(planId);
   return warning ? { ok: true, warning } : { ok: true };
+}
+
+// --- Not Available (live) ---------------------------------------------------
+
+/**
+ * Remove an associate's Not Available marker for this plan (e.g. they arrived
+ * late). Published-safe — unlike the draft-only `saveNotAvailable`. They return
+ * to the normal available pool. No assignment is created here.
+ */
+export async function removeFromNotAvailable(
+  planId: string,
+  associateId: string,
+): Promise<ActionResult> {
+  await requireRole(PLANNER_ROLES);
+  const plan = await requirePublished(planId);
+  if ('ok' in plan) return plan;
+  if (!z.string().uuid().safeParse(associateId).success) {
+    return fail('Please try again.');
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('call_offs')
+    .delete()
+    .eq('daily_plan_id', planId)
+    .eq('associate_id', associateId);
+  if (error) return dbFail();
+
+  revalidate(planId);
+  return ok;
 }
 
 // --- Remove -----------------------------------------------------------------

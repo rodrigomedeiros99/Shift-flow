@@ -62,6 +62,7 @@ export default async function LivePlanWorkspacePage({
         assignments={assignments}
         callOffs={callOffs}
         specials={specials}
+        departments={departments}
         activity={activity}
       />
     </>
