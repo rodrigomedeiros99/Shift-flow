@@ -4,14 +4,16 @@ import { createClient } from '@/lib/supabase/server';
 import {
   listAssociates,
   listDepartments,
+  listDockDoors,
   listShiftKeys,
   listTasks,
 } from '@/features/config/queries';
 import { todayISO } from '@/lib/utils/date';
-import type { DailyPlan } from '@/types/domain';
+import type { ActivityHistory, DailyPlan } from '@/types/domain';
 import type { DepartmentKind } from '@/lib/constants/departments';
 import {
   ASSIGNMENT_STATUS_LABELS,
+  type ActivityAction,
   type AssignmentStatus,
 } from '@/lib/constants/assignments';
 
@@ -161,4 +163,111 @@ export async function getDashboardData(
     byStatus,
     byTask,
   };
+}
+
+// --- Recent activity (today, across the facility's plans) -------------------
+
+export interface RecentActivityResult {
+  items: ActivityHistory[];
+  nameOf: Map<string, string>;
+  taskName: Map<string, string>;
+  doorName: Map<string, string>;
+  /** daily_plan_id → label + link, for plan context on each row. */
+  planContext: Map<string, { label: string; href: string }>;
+}
+
+interface ActivityRow {
+  id: string;
+  daily_plan_id: string;
+  associate_id: string;
+  from_task_type_id: string | null;
+  to_task_type_id: string | null;
+  from_equipment_id: string | null;
+  to_equipment_id: string | null;
+  from_dock_door_id: string | null;
+  to_dock_door_id: string | null;
+  action_type: string;
+  reason: string | null;
+  changed_by: string | null;
+  changed_at: string;
+}
+
+/**
+ * The latest operational changes from today across every plan the caller can
+ * see (RLS-scoped), newest first. Powers the Dashboard "Recent activity"
+ * section with the same shape the Live timeline uses, plus plan context + link.
+ */
+export async function getRecentActivity(
+  limit = 8,
+): Promise<RecentActivityResult> {
+  const supabase = await db();
+  const date = todayISO();
+
+  const [departments, shiftKeys, associates, tasks, dockDoors] =
+    await Promise.all([
+      listDepartments(),
+      listShiftKeys(),
+      listAssociates(),
+      listTasks(),
+      listDockDoors(),
+    ]);
+
+  const deptName = new Map(departments.map((d) => [d.id, d.name]));
+  const keyName = new Map(shiftKeys.map((k) => [k.id, k.name]));
+  const nameOf = new Map(
+    associates.map((a) => [a.id, `${a.firstName} ${a.lastName}`]),
+  );
+  const taskName = new Map(tasks.map((t) => [t.id, t.name]));
+  const doorName = new Map(dockDoors.map((d) => [d.id, d.doorNumber]));
+
+  const { data: planRows } = await supabase
+    .from('daily_plans')
+    .select('id, department_id, shift_key_id, status')
+    .eq('plan_date', date);
+  const plans = (planRows as PlanRow[] | null) ?? [];
+
+  const planContext = new Map<string, { label: string; href: string }>();
+  for (const p of plans) {
+    planContext.set(p.id, {
+      label: `${deptName.get(p.department_id) ?? '—'} · ${keyName.get(p.shift_key_id) ?? '—'}`,
+      href:
+        p.status === 'published'
+          ? `/live-plan/${p.id}`
+          : `/create-plan/${p.id}`,
+    });
+  }
+
+  const planIds = plans.map((p) => p.id);
+  if (planIds.length === 0) {
+    return { items: [], nameOf, taskName, doorName, planContext };
+  }
+
+  const { data } = await supabase
+    .from('activity_history')
+    .select(
+      'id, daily_plan_id, associate_id, from_task_type_id, to_task_type_id, from_equipment_id, to_equipment_id, from_dock_door_id, to_dock_door_id, action_type, reason, changed_by, changed_at',
+    )
+    .in('daily_plan_id', planIds)
+    .order('changed_at', { ascending: false })
+    .limit(limit);
+
+  const items: ActivityHistory[] = ((data as ActivityRow[] | null) ?? []).map(
+    (r) => ({
+      id: r.id,
+      dailyPlanId: r.daily_plan_id,
+      associateId: r.associate_id,
+      fromTaskTypeId: r.from_task_type_id,
+      toTaskTypeId: r.to_task_type_id,
+      fromEquipmentId: r.from_equipment_id,
+      toEquipmentId: r.to_equipment_id,
+      fromDockDoorId: r.from_dock_door_id,
+      toDockDoorId: r.to_dock_door_id,
+      actionType: r.action_type as ActivityAction,
+      reason: r.reason,
+      changedBy: r.changed_by,
+      changedAt: r.changed_at,
+    }),
+  );
+
+  return { items, nameOf, taskName, doorName, planContext };
 }

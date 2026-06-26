@@ -81,6 +81,36 @@ function nullable(value: string): string | null {
   return value === '' ? null : value;
 }
 
+/** Friendly message when an associate already holds an active assignment. */
+const DUPLICATE_ASSIGNMENT_MESSAGE =
+  'That associate is already assigned in this plan. Use Switch or Move to change their task instead of assigning them twice.';
+
+function isUniqueViolation(error: { code?: string } | null): boolean {
+  return error?.code === '23505';
+}
+
+/**
+ * Whether `associateId` already has an active (non-completed) assignment in this
+ * plan — the invariant the no-duplicate index enforces. `excludeId` skips the
+ * row being edited so updating an existing assignment doesn't flag itself.
+ */
+async function hasActiveAssignment(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  planId: string,
+  associateId: string,
+  excludeId?: string,
+): Promise<boolean> {
+  let query = supabase
+    .from('assignments')
+    .select('id')
+    .eq('daily_plan_id', planId)
+    .eq('associate_id', associateId)
+    .neq('status', 'completed');
+  if (excludeId) query = query.neq('id', excludeId);
+  const { data } = await query.limit(1).maybeSingle();
+  return data !== null;
+}
+
 /** Guard that a plan exists and is still an editable draft. */
 async function requireDraft(
   planId: string,
@@ -908,6 +938,9 @@ export async function addAssignment(
   );
 
   const supabase = await createClient();
+  if (await hasActiveAssignment(supabase, planId, parsed.data.associateId)) {
+    return fail(DUPLICATE_ASSIGNMENT_MESSAGE);
+  }
   const { error } = await supabase.from('assignments').insert({
     daily_plan_id: planId,
     associate_id: parsed.data.associateId,
@@ -919,7 +952,10 @@ export async function addAssignment(
     is_primary_planned: assignmentType === 'planned',
     notes: parsed.data.notes || null,
   });
-  if (error) return dbFail();
+  if (error)
+    return isUniqueViolation(error)
+      ? fail(DUPLICATE_ASSIGNMENT_MESSAGE)
+      : dbFail();
   revalidatePath(`/create-plan/${planId}`);
   return warning ? { ok: true, warning } : { ok: true };
 }
@@ -951,6 +987,11 @@ export async function updateAssignment(
   );
 
   const supabase = await createClient();
+  if (
+    await hasActiveAssignment(supabase, planId, parsed.data.associateId, id)
+  ) {
+    return fail(DUPLICATE_ASSIGNMENT_MESSAGE);
+  }
   const { error } = await supabase
     .from('assignments')
     .update({
@@ -961,7 +1002,10 @@ export async function updateAssignment(
       notes: parsed.data.notes || null,
     })
     .eq('id', id);
-  if (error) return dbFail();
+  if (error)
+    return isUniqueViolation(error)
+      ? fail(DUPLICATE_ASSIGNMENT_MESSAGE)
+      : dbFail();
   revalidatePath(`/create-plan/${planId}`);
   return warning ? { ok: true, warning } : { ok: true };
 }

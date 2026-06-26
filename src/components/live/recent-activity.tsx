@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   ACTIVITY_ACTION_LABELS,
   ASSIGNMENT_STATUS_LABELS,
@@ -11,6 +12,13 @@ interface RecentActivityProps {
   nameOf: Map<string, string>;
   taskName: Map<string, string>;
   doorName: Map<string, string>;
+  /** Optional title override (defaults to "Recent activity"). */
+  title?: string;
+  /**
+   * Optional plan context per `dailyPlanId`. When provided (Dashboard, where
+   * activity spans plans) each row shows a linked department · key label.
+   */
+  planContext?: Map<string, { label: string; href: string }>;
 }
 
 const time = (iso: string) =>
@@ -55,11 +63,13 @@ export function RecentActivity({
   nameOf,
   taskName,
   doorName,
+  title = 'Recent activity',
+  planContext,
 }: RecentActivityProps) {
   return (
     <Card>
       <CardHeader className="py-3">
-        <CardTitle className="text-sm">Recent activity</CardTitle>
+        <CardTitle className="text-sm">{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-3">
         {items.length === 0 ? (
@@ -68,20 +78,34 @@ export function RecentActivity({
           </p>
         ) : (
           <ul className="space-y-1.5">
-            {items.map((a) => (
-              <li key={a.id} className="flex items-baseline gap-2 text-sm">
-                <span className="text-foreground-subtle tabular-nums">
-                  {time(a.changedAt)}
-                </span>
-                <span className="text-foreground-muted">
-                  <span className="text-foreground font-medium">
-                    {nameOf.get(a.associateId) ?? '—'}
-                  </span>{' '}
-                  {ACTIVITY_ACTION_LABELS[a.actionType].toLowerCase()}{' '}
-                  {detail(a, taskName, doorName)}
-                </span>
-              </li>
-            ))}
+            {items.map((a) => {
+              const ctx = planContext?.get(a.dailyPlanId);
+              return (
+                <li key={a.id} className="flex items-baseline gap-2 text-sm">
+                  <span className="text-foreground-subtle tabular-nums">
+                    {time(a.changedAt)}
+                  </span>
+                  <span className="text-foreground-muted">
+                    <span className="text-foreground font-medium">
+                      {nameOf.get(a.associateId) ?? '—'}
+                    </span>{' '}
+                    {ACTIVITY_ACTION_LABELS[a.actionType].toLowerCase()}{' '}
+                    {detail(a, taskName, doorName)}
+                    {ctx ? (
+                      <>
+                        {' · '}
+                        <Link
+                          href={ctx.href}
+                          className="text-primary hover:underline"
+                        >
+                          {ctx.label}
+                        </Link>
+                      </>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardContent>

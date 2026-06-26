@@ -35,6 +35,7 @@ import {
   moveAssignment,
   removeFromNotAvailable,
   removeLiveAssignment,
+  removeSpecialAssignment,
   setAssignmentStatus,
   switchLive,
 } from '@/features/live/actions';
@@ -50,8 +51,12 @@ import type {
 } from '@/types/domain';
 import {
   ABSENCE_TYPE_LABELS,
+  SPECIAL_ASSIGNMENT_LABELS,
+  SPECIAL_ASSIGNMENT_TYPES,
   type AssignmentType,
+  type SpecialAssignmentType,
 } from '@/lib/constants/assignments';
+import { sortAssociates } from '@/lib/utils/associates';
 
 interface LiveBoardProps {
   planId: string;
@@ -138,9 +143,12 @@ export function LiveBoard({
   );
 
   // Normal available pool excludes Not Available people (unchanged behavior).
+  // Sorted A–Z so every picker reads alphabetically (#1).
   const pool = useMemo(
     () =>
-      associates.filter((a) => !occupied.has(a.id) && !callOffById.has(a.id)),
+      sortAssociates(
+        associates.filter((a) => !occupied.has(a.id) && !callOffById.has(a.id)),
+      ),
     [associates, occupied, callOffById],
   );
 
@@ -148,7 +156,9 @@ export function LiveBoard({
   // for manual assignment in Live Plan (late arrivals), with a confirmation.
   const notAvailable = useMemo(
     () =>
-      associates.filter((a) => callOffById.has(a.id) && !occupied.has(a.id)),
+      sortAssociates(
+        associates.filter((a) => callOffById.has(a.id) && !occupied.has(a.id)),
+      ),
     [associates, callOffById, occupied],
   );
   const notAvailableIds = useMemo(
@@ -316,6 +326,27 @@ export function LiveBoard({
     if (okDone) setRemovingNA(null);
   }
 
+  // --- Special assignments (Middle Mile, ICQA Support, Overtime, …) ---
+  const specialsByType = useMemo(() => {
+    const map = new Map<SpecialAssignmentType, SpecialAssignment[]>();
+    for (const s of specials) {
+      const arr = map.get(s.type);
+      if (arr) arr.push(s);
+      else map.set(s.type, [s]);
+    }
+    return map;
+  }, [specials]);
+  const [removingSpecial, setRemovingSpecial] =
+    useState<SpecialAssignment | null>(null);
+  async function confirmRemoveSpecial() {
+    if (!removingSpecial) return;
+    const okDone = await run(
+      () => removeSpecialAssignment(planId, removingSpecial.id),
+      'Returned to pool',
+    );
+    if (okDone) setRemovingSpecial(null);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -443,6 +474,80 @@ export function LiveBoard({
           ))}
         </div>
       )}
+
+      {/* Special assignments — Middle Mile, ICQA Support, Overtime, Training,
+          Support Outbound. Visible on the live board and manageable: move to a
+          task (assign) or return to the pool (#4). */}
+      {specials.length > 0 ? (
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm">
+              Special assignments
+              <span className="text-foreground-subtle ml-1 font-normal">
+                ({specials.length})
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-3">
+            {SPECIAL_ASSIGNMENT_TYPES.filter((type) =>
+              specialsByType.has(type),
+            ).map((type) => (
+              <div key={type} className="space-y-2">
+                <span className="bg-primary text-primary-foreground inline-block rounded-md px-2.5 py-0.5 text-sm font-bold tracking-wide uppercase">
+                  {SPECIAL_ASSIGNMENT_LABELS[type]}
+                </span>
+                <ul className="divide-border divide-y">
+                  {specialsByType.get(type)!.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2 first:pt-0 last:pb-0"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-foreground text-sm font-medium">
+                          {nameOf.get(s.associateId) ?? '—'}
+                          {s.relatedAssociateId
+                            ? ` + ${nameOf.get(s.relatedAssociateId) ?? '—'}`
+                            : ''}
+                        </p>
+                        {s.taskTypeId ? (
+                          <p className="text-foreground-muted text-xs">
+                            {taskName.get(s.taskTypeId) ?? '—'}
+                          </p>
+                        ) : null}
+                      </div>
+                      {!readOnly ? (
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="gap-1.5"
+                            disabled={pending}
+                            onClick={() => openAssign(s.associateId)}
+                          >
+                            <UserPlus
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
+                            Move to task
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={pending}
+                            onClick={() => setRemovingSpecial(s)}
+                          >
+                            Return to pool
+                          </Button>
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Available pool */}
       <Card>
@@ -658,6 +763,13 @@ export function LiveBoard({
             <option value="">Select an assignment</option>
             {active
               .filter((a) => a.id !== switching?.id)
+              .sort((x, y) =>
+                (nameOf.get(x.associateId) ?? '').localeCompare(
+                  nameOf.get(y.associateId) ?? '',
+                  undefined,
+                  { sensitivity: 'base' },
+                ),
+              )
               .map((a) => (
                 <option key={a.id} value={a.id}>
                   {nameOf.get(a.associateId) ?? '—'} —{' '}
@@ -714,6 +826,17 @@ export function LiveBoard({
                       {fullName(a)} — Not Available
                     </option>
                   ))}
+                </optgroup>
+              ) : null}
+              {/* Someone being moved off a special assignment isn't in either
+                  list above; show them so the picker reflects the selection. */}
+              {aAssoc &&
+              !pool.some((p) => p.id === aAssoc) &&
+              !notAvailable.some((n) => n.id === aAssoc) ? (
+                <optgroup label="On special assignment">
+                  <option value={aAssoc}>
+                    {nameOf.get(aAssoc) ?? '—'} — Special
+                  </option>
                 </optgroup>
               ) : null}
             </Select>
@@ -822,6 +945,21 @@ export function LiveBoard({
         pending={pending}
         onConfirm={confirmRemoveNA}
         onCancel={() => setRemovingNA(null)}
+      />
+
+      {/* Return a special-assignment associate to the pool */}
+      <ConfirmDialog
+        open={!!removingSpecial}
+        title="Return to available pool?"
+        description={
+          removingSpecial
+            ? `${nameOf.get(removingSpecial.associateId) ?? 'This associate'} will be removed from ${SPECIAL_ASSIGNMENT_LABELS[removingSpecial.type]} and returned to the available pool.`
+            : ''
+        }
+        confirmLabel="Return to pool"
+        pending={pending}
+        onConfirm={confirmRemoveSpecial}
+        onCancel={() => setRemovingSpecial(null)}
       />
     </div>
   );

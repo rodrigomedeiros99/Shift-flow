@@ -95,3 +95,139 @@
     outline-offset: 2px;
   }
 }
+
+/* ============================================================================
+ * TV Mode — Operations Command Center (glassmorphism display layer).
+ * A self-contained, distance-readable look for the always-on board. Theme-aware
+ * via `.dark` (next-themes); the Home Depot orange is the constant accent.
+ * ========================================================================== */
+
+/* Page stage: soft radial gradient behind the frosted cards. */
+.tv-stage {
+  background: radial-gradient(
+    ellipse at 20% 10%,
+    #fff7ed 0%,
+    #f1f5f9 40%,
+    #e0f2fe 100%
+  );
+}
+.dark .tv-stage {
+  background: radial-gradient(
+    ellipse at 20% 20%,
+    #1a0a2e 0%,
+    #0d1117 45%,
+    #0a1628 100%
+  );
+}
+
+/* Frosted-glass surface (header bar). */
+.tv-glass {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.dark .tv-glass {
+  background: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+/* Frosted-glass card. */
+.tv-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.dark .tv-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 4px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+/* Worker row hover wash (orange tint, both themes). */
+.tv-row {
+  background: rgba(0, 0, 0, 0.02);
+  transition: background 0.2s ease;
+}
+.tv-row:hover {
+  background: rgba(249, 115, 22, 0.06);
+}
+.dark .tv-row {
+  background: rgba(255, 255, 255, 0.03);
+}
+.dark .tv-row:hover {
+  background: rgba(249, 115, 22, 0.08);
+}
+
+/* Count pill on each card's orange header band. */
+.tv-count-pill {
+  background: rgba(0, 0, 0, 0.2);
+}
+.dark .tv-count-pill {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Staggered card entrance + ambient motion. */
+.tv-card-enter {
+  animation: tv-card-enter 0.45s ease both;
+}
+@keyframes tv-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.tv-blob1 {
+  animation: tv-blob1 13s ease-in-out infinite alternate;
+}
+.tv-blob2 {
+  animation: tv-blob2 16s ease-in-out infinite alternate;
+}
+@keyframes tv-blob1 {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(70px, 55px) scale(1.13);
+  }
+}
+@keyframes tv-blob2 {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(-55px, -35px) scale(1.09);
+  }
+}
+.tv-pulse-dot {
+  animation: tv-pulse-dot 2s ease-in-out infinite;
+}
+@keyframes tv-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Respect users who prefer less motion — keep the layout, drop the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .tv-card-enter,
+  .tv-blob1,
+  .tv-blob2,
+  .tv-pulse-dot {
+    animation: none;
+  }
+}

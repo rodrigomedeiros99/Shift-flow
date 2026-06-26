@@ -5,10 +5,13 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Badge, Button, Card, CardContent, EmptyState } from '@/components/ui';
 import { DashboardFilters } from '@/components/dashboard/dashboard-filters';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
+import { DashboardRealtime } from '@/components/dashboard/dashboard-realtime';
+import { RecentActivity } from '@/components/live/recent-activity';
 import { DraftDeleteButton } from '@/components/planning/draft-delete-button';
 import { listShiftKeys } from '@/features/config/queries';
 import {
   getDashboardData,
+  getRecentActivity,
   type DashboardFilter,
 } from '@/features/dashboard/queries';
 import { formatDateUS, todayISO } from '@/lib/utils/date';
@@ -40,7 +43,11 @@ export default async function DashboardPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const [sp, shiftKeys] = await Promise.all([searchParams, listShiftKeys()]);
+  const [sp, shiftKeys, recent] = await Promise.all([
+    searchParams,
+    listShiftKeys(),
+    getRecentActivity(),
+  ]);
 
   const kindRaw = str(sp, 'kind');
   const kind: '' | DepartmentKind =
@@ -66,6 +73,8 @@ export default async function DashboardPage({
           </Link>
         }
       />
+
+      <DashboardRealtime />
 
       <div className="space-y-6">
         <DashboardFilters
@@ -160,6 +169,20 @@ export default async function DashboardPage({
               })}
             </div>
           )}
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-foreground text-lg font-semibold">
+            Recent activity
+          </h2>
+          <RecentActivity
+            items={recent.items}
+            nameOf={recent.nameOf}
+            taskName={recent.taskName}
+            doorName={recent.doorName}
+            planContext={recent.planContext}
+            title="Today's activity"
+          />
         </section>
       </div>
     </>

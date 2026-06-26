@@ -53,6 +53,11 @@ import {
   type SwapSuggestion,
 } from '@/features/planning/rotation-suggest';
 import { formatDateUS } from '@/lib/utils/date';
+import { sortAssociates } from '@/lib/utils/associates';
+import {
+  SPECIAL_ASSIGNMENT_LABELS,
+  SPECIAL_ASSIGNMENT_TYPES,
+} from '@/lib/constants/assignments';
 import type {
   Assignment,
   Associate,
@@ -131,6 +136,18 @@ export function ReviewBoard({
     [dockDoors],
   );
 
+  // Every associate, A–Z by full name — the order all pickers display (#1).
+  const sortedAssociates = useMemo(
+    () => sortAssociates(associates),
+    [associates],
+  );
+
+  // Active assignment per associate, for "Already Assigned" picker hints (#2).
+  const assignmentByAssociate = useMemo(
+    () => new Map(assignments.map((a) => [a.associateId, a])),
+    [assignments],
+  );
+
   // Available pool = eligible associates not assigned and not otherwise committed.
   const pool = useMemo(() => {
     const used = new Set<string>();
@@ -140,8 +157,8 @@ export function ReviewBoard({
       used.add(s.associateId);
       if (s.relatedAssociateId) used.add(s.relatedAssociateId);
     }
-    return associates.filter((a) => !used.has(a.id));
-  }, [assignments, associates, callOffs, specials]);
+    return sortedAssociates.filter((a) => !used.has(a.id));
+  }, [assignments, sortedAssociates, callOffs, specials]);
 
   // Group assignments into card columns. Outbound groups by task. Inbound
   // ('door') groups door-bearing work under the door, and door-less ops (Put
@@ -169,6 +186,15 @@ export function ReviewBoard({
     return taskId === 'none'
       ? 'Unassigned task'
       : (taskName.get(taskId) ?? '—');
+  };
+
+  /** Where an associate is already assigned — the disabled picker hint (#2). */
+  const assignedLabel = (associateId: string): string => {
+    const a = assignmentByAssociate.get(associateId);
+    if (!a) return '';
+    if (a.taskTypeId) return taskName.get(a.taskTypeId) ?? 'a task';
+    if (a.dockDoorId) return `Door ${doorName.get(a.dockDoorId) ?? '—'}`;
+    return 'a task';
   };
 
   // --- Fair rotation (Phase 7) ---
@@ -219,18 +245,69 @@ export function ReviewBoard({
       })),
     [assignments],
   );
-  const suggestionFor = (a: Assignment): SwapSuggestion | null =>
-    suggestSwap(
-      a.id,
-      swapInputs,
-      rotationIndex,
-      planDate,
-      lookbackDays,
-      certContext,
-    );
   /** Conflicted cards the leader chose to ignore (local, session-only). */
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const dismiss = (id: string) => setDismissed((prev) => new Set(prev).add(id));
+
+  // One suggestion per conflicted card, de-duplicated by the swap *pair* (#3).
+  // A swap between two conflicted associates would otherwise surface under both
+  // their cards; we show it once (under the first card) and mark the partner's
+  // card as "covered" so applying one suggestion never looks like it applied
+  // several. Each card's Apply/Ignore still targets only that card.
+  const rotationView = useMemo(() => {
+    const view = new Map<
+      string,
+      { suggestion: SwapSuggestion | null; coveredBy: string | null }
+    >();
+    const claimedBy = new Map<string, string>(); // pairKey -> owning assignmentId
+    for (const a of assignments) {
+      if (dismissed.has(a.id)) continue;
+      const conflicted = recentConflictDate(
+        rotationIndex,
+        a.associateId,
+        a.taskTypeId,
+        planDate,
+        lookbackDays,
+      );
+      if (!conflicted) continue;
+      const suggestion = suggestSwap(
+        a.id,
+        swapInputs,
+        rotationIndex,
+        planDate,
+        lookbackDays,
+        certContext,
+      );
+      if (!suggestion) {
+        view.set(a.id, { suggestion: null, coveredBy: null });
+        continue;
+      }
+      const pairKey = [a.id, suggestion.partnerAssignmentId].sort().join(':');
+      const owner = claimedBy.get(pairKey);
+      if (owner) {
+        const ownerAssoc = assignments.find((x) => x.id === owner);
+        view.set(a.id, {
+          suggestion: null,
+          coveredBy: ownerAssoc
+            ? (nameOf.get(ownerAssoc.associateId) ?? '—')
+            : '—',
+        });
+      } else {
+        claimedBy.set(pairKey, a.id);
+        view.set(a.id, { suggestion, coveredBy: null });
+      }
+    }
+    return view;
+  }, [
+    assignments,
+    dismissed,
+    rotationIndex,
+    swapInputs,
+    planDate,
+    lookbackDays,
+    certContext,
+    nameOf,
+  ]);
 
   async function applySuggestion(targetId: string, partnerId: string) {
     setPending(true);
@@ -484,9 +561,24 @@ export function ReviewBoard({
                         {formatDateUS(conflictDate(a) ?? '')}
                       </p>
                     ) : null}
-                    {!readOnly && conflictDate(a) && !dismissed.has(a.id) ? (
+                    {!readOnly &&
+                    conflictDate(a) &&
+                    !dismissed.has(a.id) &&
+                    rotationView.get(a.id)?.coveredBy ? (
+                      <p className="text-foreground-muted bg-surface-raised/50 border-border mt-2 rounded-md border border-dashed p-2 text-xs">
+                        Covered by the suggestion for{' '}
+                        <span className="text-foreground font-medium">
+                          {rotationView.get(a.id)?.coveredBy}
+                        </span>
+                        .
+                      </p>
+                    ) : null}
+                    {!readOnly &&
+                    conflictDate(a) &&
+                    !dismissed.has(a.id) &&
+                    !rotationView.get(a.id)?.coveredBy ? (
                       <RotationSuggestion
-                        suggestion={suggestionFor(a)}
+                        suggestion={rotationView.get(a.id)?.suggestion ?? null}
                         partnerName={(id) => nameOf.get(id) ?? '—'}
                         taskLabel={
                           taskName.get(a.taskTypeId ?? '') ?? 'this task'
@@ -534,6 +626,51 @@ export function ReviewBoard({
           ))}
         </div>
       )}
+
+      {/* Special assignments — Middle Mile, ICQA Support, Overtime, Training,
+          Support Outbound. Shown here so they're visible on the published /
+          created plan detail, not just hidden from the pool (#4). */}
+      {specials.length > 0 ? (
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm">
+              Special assignments
+              <span className="text-foreground-subtle ml-1 font-normal">
+                ({specials.length})
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 p-3">
+            {SPECIAL_ASSIGNMENT_TYPES.filter((type) =>
+              specials.some((s) => s.type === type),
+            ).map((type) => (
+              <div key={type}>
+                <p className="text-foreground-muted text-xs font-semibold tracking-wide uppercase">
+                  {SPECIAL_ASSIGNMENT_LABELS[type]}
+                </p>
+                <ul className="mt-1 flex flex-wrap gap-2">
+                  {specials
+                    .filter((s) => s.type === type)
+                    .map((s) => (
+                      <li
+                        key={s.id}
+                        className="border-border rounded-full border px-3 py-1 text-sm"
+                      >
+                        {nameOf.get(s.associateId) ?? '—'}
+                        {s.relatedAssociateId
+                          ? ` + ${nameOf.get(s.relatedAssociateId) ?? '—'}`
+                          : ''}
+                        {s.taskTypeId
+                          ? ` · ${taskName.get(s.taskTypeId) ?? '—'}`
+                          : ''}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Available pool */}
       <Card>
@@ -602,11 +739,21 @@ export function ReviewBoard({
           >
             <Select id="asg-assoc" {...form.register('associateId')}>
               <option value="">Select an associate</option>
-              {associates.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {fullName(a)}
-                </option>
-              ))}
+              {sortedAssociates.map((a) => {
+                // Already assigned (and not the row being edited) → can't be
+                // picked again; Switch/Move exists for that (#2).
+                const assignedElsewhere =
+                  assignmentByAssociate.has(a.id) &&
+                  a.id !== editing?.associateId;
+                return (
+                  <option key={a.id} value={a.id} disabled={assignedElsewhere}>
+                    {fullName(a)}
+                    {assignedElsewhere
+                      ? ` — Already Assigned to ${assignedLabel(a.id)}`
+                      : ''}
+                  </option>
+                );
+              })}
             </Select>
           </Field>
           <Field label="Task" htmlFor="asg-task">
@@ -686,6 +833,13 @@ export function ReviewBoard({
             <option value="">Select an assignment</option>
             {assignments
               .filter((a) => a.id !== switching?.id)
+              .sort((x, y) =>
+                (nameOf.get(x.associateId) ?? '').localeCompare(
+                  nameOf.get(y.associateId) ?? '',
+                  undefined,
+                  { sensitivity: 'base' },
+                ),
+              )
               .map((a) => (
                 <option key={a.id} value={a.id}>
                   {nameOf.get(a.associateId) ?? '—'} —{' '}

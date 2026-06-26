@@ -163,9 +163,13 @@ async function buildPlanView(
   const kind: DepartmentKind = dept?.kind ?? 'other';
   const isInbound = kind === 'inbound';
 
+  // Completed / returned-to-pool assignments leave the active board: TV shows
+  // only current work (request item #5). They stay in activity history.
+  const activeAssignments = assignments.filter((a) => a.status !== 'completed');
+
   // Group cards: inbound by active door (door-less ops by task), outbound by task.
   const buckets = new Map<string, TvCard[]>();
-  for (const a of assignments) {
+  for (const a of activeAssignments) {
     const key =
       isInbound && a.dockDoorId
         ? `door:${a.dockDoorId}`
@@ -213,8 +217,9 @@ async function buildPlanView(
   }));
 
   // Available pool = eligible associates not assigned, called off, or special.
+  // Completed associates returned to the pool, so they count as available.
   const used = new Set<string>();
-  for (const a of assignments) used.add(a.associateId);
+  for (const a of activeAssignments) used.add(a.associateId);
   for (const c of callOffs) used.add(c.associateId);
   for (const s of specials) {
     used.add(s.associateId);

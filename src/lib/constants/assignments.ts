@@ -67,6 +67,16 @@ export const SPECIAL_ASSIGNMENT_TYPES = [
 
 export type SpecialAssignmentType = (typeof SPECIAL_ASSIGNMENT_TYPES)[number];
 
+/** Display labels for special assignments (single source for board + TV). */
+export const SPECIAL_ASSIGNMENT_LABELS: Record<SpecialAssignmentType, string> =
+  {
+    overtime: 'Overtime',
+    middle_mile: 'Middle Mile',
+    icqa_support: 'ICQA Support',
+    training: 'Training',
+    support_outbound: 'Support Outbound',
+  };
+
 /** Live-operations actions recorded in activity_history (Database Schema Part 2). */
 export const ACTIVITY_ACTIONS = [
   'assigned',

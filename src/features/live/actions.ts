@@ -310,12 +310,28 @@ export async function addLiveAssignment(
     is_primary_planned: false,
     notes: parsed.data.notes || null,
   });
-  if (error) return dbFail();
+  if (error) {
+    // The no-duplicate index (0018): one active assignment per associate.
+    if ((error as { code?: string }).code === '23505') {
+      return fail(
+        'That associate is already assigned in this plan. Use Switch or Move instead.',
+      );
+    }
+    return dbFail();
+  }
 
   // A late arrival assigned in Live Plan is no longer absent — clear any
   // Not Available marker for this plan so they don't show in both lists.
   await supabase
     .from('call_offs')
+    .delete()
+    .eq('daily_plan_id', planId)
+    .eq('associate_id', parsed.data.associateId);
+
+  // Moving someone off a special assignment (e.g. Middle Mile → a task) onto a
+  // regular task: drop the special so they aren't shown in both places.
+  await supabase
+    .from('special_assignments')
     .delete()
     .eq('daily_plan_id', planId)
     .eq('associate_id', parsed.data.associateId);
@@ -357,6 +373,52 @@ export async function removeFromNotAvailable(
     .eq('associate_id', associateId);
   if (error) return dbFail();
 
+  revalidate(planId);
+  return ok;
+}
+
+// --- Special assignments (Middle Mile, ICQA Support, etc.) ------------------
+
+/**
+ * Return a special-assignment associate to the available pool (their work is
+ * done or they're being freed up). Published-safe + role-gated. The special row
+ * is deleted; the change is logged to activity history. To instead move them
+ * onto a task, assign them from the pool — `addLiveAssignment` clears the
+ * special automatically.
+ */
+export async function removeSpecialAssignment(
+  planId: string,
+  specialId: string,
+): Promise<ActionResult> {
+  const profile = await requireRole(PLANNER_ROLES);
+  const plan = await requirePublished(planId);
+  if ('ok' in plan) return plan;
+  if (!z.string().uuid().safeParse(specialId).success) {
+    return fail('Please try again.');
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('special_assignments')
+    .select('associate_id')
+    .eq('id', specialId)
+    .eq('daily_plan_id', planId)
+    .maybeSingle();
+  const special = data as { associate_id: string } | null;
+  if (!special) return fail('Special assignment not found.');
+
+  const { error } = await supabase
+    .from('special_assignments')
+    .delete()
+    .eq('id', specialId);
+  if (error) return dbFail();
+
+  await logActivity(supabase, {
+    planId,
+    associateId: special.associate_id,
+    action: 'removed',
+    changedBy: profile.id,
+  });
   revalidate(planId);
   return ok;
 }
