@@ -17,7 +17,26 @@ export function formatDateUS(iso: string): string {
   return m ? `${m[2]}/${m[3]}/${m[1]}` : iso;
 }
 
-/** Format an ISO timestamp as US date + time, e.g. `06/07/2026, 2:30 PM`. */
+/**
+ * Facility display time zone (DFC 5523 = US Eastern). Timestamps are stored in
+ * UTC, so activity times are always formatted against this zone — otherwise a
+ * server rendering in UTC would show e.g. 4:30 PM for a 12:30 PM Eastern change.
+ */
+export const FACILITY_TIME_ZONE = 'America/New_York';
+
+/** Format an ISO timestamp as a 12-hour local time, e.g. `12:30 PM` (Eastern). */
+export function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: FACILITY_TIME_ZONE,
+      });
+}
+
+/** Format an ISO timestamp as US date + time, e.g. `06/07/2026, 2:30 PM` (Eastern). */
 export function formatDateTimeUS(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
@@ -28,6 +47,7 @@ export function formatDateTimeUS(iso: string): string {
         year: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
+        timeZone: FACILITY_TIME_ZONE,
       });
 }
 

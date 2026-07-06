@@ -56,8 +56,8 @@ export function LiveWorkspace({
   const groupBy = deptKind === 'inbound' ? 'door' : 'task';
 
   const nameOf = useMemo(
-    () => new Map(inputs.associates.map((a) => [a.id, fullName(a)])),
-    [inputs.associates],
+    () => new Map(inputs.allAssociates.map((a) => [a.id, fullName(a)])),
+    [inputs.allAssociates],
   );
   const taskName = useMemo(
     () => new Map(inputs.tasks.map((t) => [t.id, t.name])),
@@ -120,6 +120,7 @@ export function LiveWorkspace({
         planId={plan.id}
         assignments={assignments}
         associates={inputs.associates}
+        allAssociates={inputs.allAssociates}
         tasks={inputs.tasks}
         equipment={inputs.equipment}
         dockDoors={inputs.dockDoors}

@@ -1,17 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import type { SpecialSummary } from '@/features/history/queries';
 import {
+  SPECIAL_ASSIGNMENT_LABELS as LABELS,
   SPECIAL_ASSIGNMENT_TYPES,
-  type SpecialAssignmentType,
 } from '@/lib/constants/assignments';
-
-const LABELS: Record<SpecialAssignmentType, string> = {
-  overtime: 'Overtime',
-  middle_mile: 'Middle Mile',
-  icqa_support: 'ICQA Support',
-  training: 'Training',
-  support_outbound: 'Support Outbound',
-};
 
 /** Overtime / Training / Middle Mile / ICQA / Support counts (PRD §9). */
 export function SpecialSummaryPanel({ summary }: { summary: SpecialSummary }) {

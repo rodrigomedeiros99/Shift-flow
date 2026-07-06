@@ -31,14 +31,17 @@ import { Field } from '@/components/config/field';
 import { StatusMenu } from './status-menu';
 import {
   addLiveAssignment,
+  changeSpecialType,
   completeAssignment,
   moveAssignment,
+  moveAssignmentToSupport,
   removeFromNotAvailable,
   removeLiveAssignment,
   removeSpecialAssignment,
   setAssignmentStatus,
   switchLive,
 } from '@/features/live/actions';
+import { LIVE_SUPPORT_MOVE_TYPES } from '@/features/live/schemas';
 import type {
   Assignment,
   Associate,
@@ -62,6 +65,8 @@ interface LiveBoardProps {
   planId: string;
   assignments: Assignment[];
   associates: Associate[];
+  /** All active facility associates — resolves cross-department support names. */
+  allAssociates?: Associate[];
   tasks: TaskType[];
   equipment: EquipmentType[];
   dockDoors: DockDoor[];
@@ -85,6 +90,7 @@ export function LiveBoard({
   planId,
   assignments,
   associates,
+  allAssociates,
   tasks,
   equipment,
   dockDoors,
@@ -98,9 +104,12 @@ export function LiveBoard({
   const { toast } = useToast();
   const [pending, setPending] = useState(false);
 
+  // Names resolve across departments/keys so cross-dept support people (who
+  // aren't in this plan's pool) still show a real name.
   const nameOf = useMemo(
-    () => new Map(associates.map((a) => [a.id, fullName(a)])),
-    [associates],
+    () =>
+      new Map((allAssociates ?? associates).map((a) => [a.id, fullName(a)])),
+    [allAssociates, associates],
   );
   const taskName = useMemo(
     () => new Map(tasks.map((t) => [t.id, t.name])),
@@ -218,31 +227,79 @@ export function LiveBoard({
     return false;
   }
 
-  // --- Move modal ---
-  const [moving, setMoving] = useState<Assignment | null>(null);
-  const [mTask, setMTask] = useState('');
+  // --- Move modal (works for a regular assignment or a special assignment) ---
+  // Destination is encoded as `task:<id>` / `task:none` / `special:<type>`.
+  type MoveSource =
+    | { kind: 'assignment'; a: Assignment }
+    | { kind: 'special'; s: SpecialAssignment };
+  const [moving, setMoving] = useState<MoveSource | null>(null);
+  const [mDest, setMDest] = useState('');
   const [mEquip, setMEquip] = useState('');
   const [mDoor, setMDoor] = useState('');
   const [mNotes, setMNotes] = useState('');
+  const movingAssociateId = moving
+    ? moving.kind === 'assignment'
+      ? moving.a.associateId
+      : moving.s.associateId
+    : '';
   function openMove(a: Assignment) {
-    setMoving(a);
-    setMTask(a.taskTypeId ?? '');
+    setMoving({ kind: 'assignment', a });
+    setMDest(a.taskTypeId ? `task:${a.taskTypeId}` : 'task:none');
     setMEquip(a.equipmentId ?? '');
     setMDoor(a.dockDoorId ?? '');
     setMNotes(a.notes ?? '');
   }
+  function openMoveSpecial(s: SpecialAssignment) {
+    setMoving({ kind: 'special', s });
+    const isSupport = (LIVE_SUPPORT_MOVE_TYPES as readonly string[]).includes(
+      s.type,
+    );
+    setMDest(isSupport ? `special:${s.type}` : 'task:none');
+    setMEquip(s.equipmentId ?? '');
+    setMDoor('');
+    setMNotes(s.notes ?? '');
+  }
+  const destIsSupport = mDest.startsWith('special:');
   async function submitMove() {
     if (!moving) return;
-    const okDone = await run(
-      () =>
-        moveAssignment(moving.id, planId, {
-          taskTypeId: mTask,
-          equipmentId: mEquip,
-          dockDoorId: mDoor,
-          notes: mNotes,
-        }),
-      'Associate moved',
-    );
+    const value = mDest.split(':')[1] ?? '';
+    let action: () => Promise<
+      { ok: true; warning?: string } | { ok: false; error: string }
+    >;
+    if (destIsSupport) {
+      const support = {
+        targetType: value as (typeof LIVE_SUPPORT_MOVE_TYPES)[number],
+        equipmentId: mEquip,
+        notes: mNotes,
+      };
+      action =
+        moving.kind === 'assignment'
+          ? () => moveAssignmentToSupport(moving.a.id, planId, support)
+          : () => changeSpecialType(moving.s.id, planId, support);
+    } else {
+      const taskTypeId = value === 'none' ? '' : value;
+      action =
+        moving.kind === 'assignment'
+          ? () =>
+              moveAssignment(moving.a.id, planId, {
+                taskTypeId,
+                equipmentId: mEquip,
+                dockDoorId: mDoor,
+                notes: mNotes,
+              })
+          : () =>
+              addLiveAssignment(
+                planId,
+                {
+                  associateId: moving.s.associateId,
+                  taskTypeId,
+                  equipmentId: mEquip,
+                  dockDoorId: mDoor,
+                },
+                'support',
+              );
+    }
+    const okDone = await run(action, 'Associate moved');
     if (okDone) setMoving(null);
   }
 
@@ -522,13 +579,13 @@ export function LiveBoard({
                             variant="secondary"
                             className="gap-1.5"
                             disabled={pending}
-                            onClick={() => openAssign(s.associateId)}
+                            onClick={() => openMoveSpecial(s)}
                           >
                             <UserPlus
                               className="h-3.5 w-3.5"
                               aria-hidden="true"
                             />
-                            Move to task
+                            Move
                           </Button>
                           <Button
                             size="sm"
@@ -660,11 +717,13 @@ export function LiveBoard({
         </CardContent>
       </Card>
 
-      {/* Move modal */}
+      {/* Move modal — destination can be a regular task or a support type
+          (Middle Mile / ICQA / IB / OB Support). Overtime & Training are not
+          live move destinations. */}
       <Modal
         open={moving !== null}
         onClose={() => setMoving(null)}
-        title={`Move ${moving ? (nameOf.get(moving.associateId) ?? '') : ''}`}
+        title={`Move ${nameOf.get(movingAssociateId) ?? ''}`}
         footer={
           <>
             <Button
@@ -674,25 +733,34 @@ export function LiveBoard({
             >
               Cancel
             </Button>
-            <Button onClick={submitMove} disabled={pending}>
+            <Button onClick={submitMove} disabled={pending || !mDest}>
               {pending ? 'Saving…' : 'Move'}
             </Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Field label="Task" htmlFor="mv-task">
+          <Field label="Destination" htmlFor="mv-dest">
             <Select
-              id="mv-task"
-              value={mTask}
-              onChange={(e) => setMTask(e.target.value)}
+              id="mv-dest"
+              value={mDest}
+              onChange={(e) => setMDest(e.target.value)}
             >
-              <option value="">No task</option>
-              {tasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
+              <optgroup label="Tasks">
+                <option value="task:none">No task</option>
+                {tasks.map((t) => (
+                  <option key={t.id} value={`task:${t.id}`}>
+                    {t.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Support">
+                {LIVE_SUPPORT_MOVE_TYPES.map((type) => (
+                  <option key={type} value={`special:${type}`}>
+                    {SPECIAL_ASSIGNMENT_LABELS[type]}
+                  </option>
+                ))}
+              </optgroup>
             </Select>
           </Field>
           <Field label="Equipment" htmlFor="mv-equip">
@@ -709,20 +777,22 @@ export function LiveBoard({
               ))}
             </Select>
           </Field>
-          <Field label="Dock door" htmlFor="mv-door">
-            <Select
-              id="mv-door"
-              value={mDoor}
-              onChange={(e) => setMDoor(e.target.value)}
-            >
-              <option value="">None</option>
-              {dockDoors.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.doorNumber}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          {!destIsSupport ? (
+            <Field label="Dock door" htmlFor="mv-door">
+              <Select
+                id="mv-door"
+                value={mDoor}
+                onChange={(e) => setMDoor(e.target.value)}
+              >
+                <option value="">None</option>
+                {dockDoors.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.doorNumber}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
           <Field label="Notes" htmlFor="mv-notes">
             <Input
               id="mv-notes"

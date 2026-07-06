@@ -56,13 +56,23 @@ export const ASSIGNMENT_TYPES = [
 
 export type AssignmentType = (typeof ASSIGNMENT_TYPES)[number];
 
-/** Special-case assignments captured by the morning wizard (special_assignments). */
+/**
+ * Special-case assignments captured by the morning wizard (special_assignments).
+ *
+ * Cross-department support has two symmetric directions, each recorded on the
+ * *receiving* department's plan:
+ *   - `ib_support`       — Outbound associates supporting Inbound (shown on
+ *                          Inbound plans, "IB Support").
+ *   - `support_outbound` — Inbound associates supporting Outbound (shown on
+ *                          Outbound plans, "OB Support").
+ */
 export const SPECIAL_ASSIGNMENT_TYPES = [
   'overtime',
   'middle_mile',
   'icqa_support',
   'training',
   'support_outbound',
+  'ib_support',
 ] as const;
 
 export type SpecialAssignmentType = (typeof SPECIAL_ASSIGNMENT_TYPES)[number];
@@ -74,7 +84,8 @@ export const SPECIAL_ASSIGNMENT_LABELS: Record<SpecialAssignmentType, string> =
     middle_mile: 'Middle Mile',
     icqa_support: 'ICQA Support',
     training: 'Training',
-    support_outbound: 'Support Outbound',
+    support_outbound: 'OB Support',
+    ib_support: 'IB Support',
   };
 
 /** Live-operations actions recorded in activity_history (Database Schema Part 2). */

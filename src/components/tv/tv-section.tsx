@@ -22,7 +22,8 @@ import type { TvCard, TvPlanView } from '@/features/tv/queries';
 const SPECIAL_LABELS = {
   middle_mile: 'Middle Mile',
   icqa_support: 'ICQA Support',
-  support_outbound: 'Support Outbound',
+  support_outbound: 'OB Support',
+  ib_support: 'IB Support',
   training: 'Training',
   overtime: 'Overtime',
 } as const;
@@ -38,9 +39,10 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 const SPECIAL_ORDER: Record<SpecialKey, number> = {
   middle_mile: 20,
   icqa_support: 21,
-  overtime: 22,
-  training: 23,
-  support_outbound: 24,
+  ib_support: 22,
+  support_outbound: 23,
+  overtime: 24,
+  training: 25,
 };
 
 /** Fixed business hierarchy index for a task card (lower = earlier). */
@@ -74,6 +76,8 @@ interface Person {
   equip?: string;
   /** Dock door chip (inbound unload). */
   door?: string;
+  /** Source badge (OT/MM/…) when a special is routed onto a real task. */
+  source?: string;
 }
 
 interface Panel {
@@ -104,6 +108,7 @@ function buildPanels(view: TvPlanView): Panel[] {
         id: c.assignmentId,
         name: compactName(c.associateName),
         equip: c.equipmentName ?? undefined,
+        source: c.sourceBadge ?? undefined,
       })),
       order: order === 999 ? 1000 + unmatched++ : order,
     });
@@ -135,7 +140,7 @@ function buildPanels(view: TvPlanView): Panel[] {
       compactName(s.associateName) +
       (s.relatedName ? ` + ${compactName(s.relatedName)}` : '');
     const list = byType.get(t) ?? [];
-    list.push({ id: s.id, name });
+    list.push({ id: s.id, name, equip: s.equipmentName ?? undefined });
     byType.set(t, list);
   }
   for (const [type, people] of byType) {
@@ -149,7 +154,9 @@ function buildPanels(view: TvPlanView): Panel[] {
     });
   }
 
-  return panels.sort((a, b) => a.order - b.order);
+  // Largest teams first so the busiest tasks are easiest to see; ties fall back
+  // to the fixed operational hierarchy for a stable order.
+  return panels.sort((a, b) => b.count - a.count || a.order - b.order);
 }
 
 /** Equipment / dock-door "role" badge beside a name. */
@@ -204,6 +211,11 @@ function TaskCard({ panel, index }: { panel: Panel; index: number }) {
                 {p.equip ? (
                   <Badge className={getEquipmentBadgeClass(p.equip)}>
                     {p.equip}
+                  </Badge>
+                ) : null}
+                {p.source ? (
+                  <Badge className="border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/20 dark:text-amber-200">
+                    {p.source}
                   </Badge>
                 ) : null}
               </span>

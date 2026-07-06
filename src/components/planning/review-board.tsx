@@ -72,6 +72,11 @@ interface ReviewBoardProps {
   planId: string;
   assignments: Assignment[];
   associates: Associate[];
+  /**
+   * All active facility associates, for resolving names of cross-department
+   * support people. Falls back to `associates` when omitted.
+   */
+  allAssociates?: Associate[];
   tasks: TaskType[];
   equipment: EquipmentType[];
   dockDoors: DockDoor[];
@@ -102,6 +107,7 @@ export function ReviewBoard({
   planId,
   assignments,
   associates,
+  allAssociates,
   tasks,
   equipment,
   dockDoors,
@@ -119,9 +125,12 @@ export function ReviewBoard({
   const { toast } = useToast();
   const [pending, setPending] = useState(false);
 
+  // Names resolve across departments/keys so cross-dept support people show a
+  // real name; the pool/eligibility logic below still uses the narrow list.
   const nameOf = useMemo(
-    () => new Map(associates.map((a) => [a.id, fullName(a)])),
-    [associates],
+    () =>
+      new Map((allAssociates ?? associates).map((a) => [a.id, fullName(a)])),
+    [allAssociates, associates],
   );
   const taskName = useMemo(
     () => new Map(tasks.map((t) => [t.id, t.name])),

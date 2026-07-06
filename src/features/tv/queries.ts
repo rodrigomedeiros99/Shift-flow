@@ -35,7 +35,18 @@ const SPECIAL_LABELS: Record<SpecialAssignmentType, string> = {
   middle_mile: 'Middle Mile',
   icqa_support: 'ICQA Support',
   training: 'Training',
-  support_outbound: 'Support Outbound',
+  support_outbound: 'OB Support',
+  ib_support: 'IB Support',
+};
+
+/** Short source badge for a special routed onto a real operational task. */
+const SOURCE_BADGE: Record<SpecialAssignmentType, string> = {
+  overtime: 'OT',
+  middle_mile: 'MM',
+  icqa_support: 'ICQA',
+  training: 'TR',
+  support_outbound: 'OB',
+  ib_support: 'IB',
 };
 
 export interface TvCard {
@@ -45,6 +56,12 @@ export interface TvCard {
   equipmentName: string | null;
   doorNumber: string | null;
   status: AssignmentStatus;
+  /**
+   * Source indicator when the card is a special assignment routed to its chosen
+   * operational task (e.g. an overtime associate placed on CL) — 'OT', 'MM',
+   * 'ICQA', 'IB', 'OB', 'TR'. Null for regular assignments.
+   */
+  sourceBadge: string | null;
 }
 
 export interface TvGroup {
@@ -59,6 +76,7 @@ export interface TvSpecial {
   associateName: string;
   relatedName: string | null;
   taskName: string | null;
+  equipmentName: string | null;
 }
 
 export interface TvPlanView {
@@ -185,6 +203,30 @@ async function buildPlanView(
         ? (ctx.doorNumber.get(a.dockDoorId) ?? '—')
         : null,
       status: a.status,
+      sourceBadge: null,
+    };
+    const arr = buckets.get(key);
+    if (arr) arr.push(card);
+    else buckets.set(key, [card]);
+  }
+
+  // A special with a chosen operational task is really doing that task (an
+  // overtime associate on CL, etc.) — route them into the task group with a
+  // small source badge. Task-less specials stay standalone support panels.
+  const standaloneSpecials = specials.filter((s) => !s.taskTypeId);
+  for (const s of specials) {
+    if (!s.taskTypeId) continue;
+    const key = `task:${s.taskTypeId}`;
+    const card: TvCard = {
+      assignmentId: s.id,
+      associateName: ctx.nameOf.get(s.associateId) ?? '—',
+      taskName: ctx.taskName.get(s.taskTypeId) ?? '—',
+      equipmentName: s.equipmentId
+        ? (ctx.equipName.get(s.equipmentId) ?? '—')
+        : null,
+      doorNumber: null,
+      status: 'assigned',
+      sourceBadge: SOURCE_BADGE[s.type],
     };
     const arr = buckets.get(key);
     if (arr) arr.push(card);
@@ -206,7 +248,7 @@ async function buildPlanView(
     cards: buckets.get(key) ?? [],
   }));
 
-  const specialViews: TvSpecial[] = specials.map((s) => ({
+  const specialViews: TvSpecial[] = standaloneSpecials.map((s) => ({
     id: s.id,
     label: SPECIAL_LABELS[s.type],
     associateName: ctx.nameOf.get(s.associateId) ?? '—',
@@ -214,6 +256,9 @@ async function buildPlanView(
       ? (ctx.nameOf.get(s.relatedAssociateId) ?? '—')
       : null,
     taskName: s.taskTypeId ? (ctx.taskName.get(s.taskTypeId) ?? '—') : null,
+    equipmentName: s.equipmentId
+      ? (ctx.equipName.get(s.equipmentId) ?? '—')
+      : null,
   }));
 
   // Available pool = eligible associates not assigned, called off, or special.

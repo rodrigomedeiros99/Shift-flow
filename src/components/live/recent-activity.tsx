@@ -6,6 +6,7 @@ import {
 } from '@/lib/constants/assignments';
 import type { ActivityHistory } from '@/types/domain';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { formatTime } from '@/lib/utils/date';
 
 interface RecentActivityProps {
   items: ActivityHistory[];
@@ -20,9 +21,6 @@ interface RecentActivityProps {
    */
   planContext?: Map<string, { label: string; href: string }>;
 }
-
-const time = (iso: string) =>
-  new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 function detail(
   a: ActivityHistory,
@@ -83,7 +81,7 @@ export function RecentActivity({
               return (
                 <li key={a.id} className="flex items-baseline gap-2 text-sm">
                   <span className="text-foreground-subtle tabular-nums">
-                    {time(a.changedAt)}
+                    {formatTime(a.changedAt)}
                   </span>
                   <span className="text-foreground-muted">
                     <span className="text-foreground font-medium">

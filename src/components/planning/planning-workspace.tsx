@@ -143,6 +143,7 @@ export function PlanningWorkspace({
           planId={plan.id}
           assignments={assignments}
           associates={inputs.associates}
+          allAssociates={inputs.allAssociates}
           tasks={inputs.tasks}
           equipment={inputs.equipment}
           dockDoors={inputs.dockDoors}
@@ -218,10 +219,14 @@ export function PlanningWorkspace({
           deptKind={deptKind}
           middleMileOwner={plan.middleMileOwner}
           associates={inputs.associates}
+          allAssociates={inputs.allAssociates}
+          shiftKeys={inputs.shiftKeys}
+          departments={inputs.departments}
           tasks={inputs.tasks}
           equipment={inputs.equipment}
           callOffs={callOffs}
           specials={specials}
+          assignments={assignments}
         />
       </section>
 
@@ -236,6 +241,7 @@ export function PlanningWorkspace({
           planId={plan.id}
           assignments={assignments}
           associates={inputs.associates}
+          allAssociates={inputs.allAssociates}
           tasks={inputs.tasks}
           equipment={inputs.equipment}
           dockDoors={inputs.dockDoors}

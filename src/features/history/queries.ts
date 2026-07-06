@@ -334,6 +334,7 @@ export async function getSpecialSummary(
     icqa_support: 0,
     training: 0,
     support_outbound: 0,
+    ib_support: 0,
   };
   for (const row of (data as { type: string }[] | null) ?? []) {
     if (row.type in summary) summary[row.type as SpecialAssignmentType] += 1;

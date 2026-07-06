@@ -5,12 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole, PLANNER_ROLES } from '@/features/auth/queries';
 import { getPlan } from '@/features/planning/queries';
-import { moveSchema, poolAssignSchema } from './schemas';
+import { moveSchema, poolAssignSchema, supportMoveSchema } from './schemas';
 import { logAudit } from '@/features/audit/log';
 import type { ActionResult, WarnResult } from '@/features/planning/types';
-import type {
-  ActivityAction,
-  AssignmentType,
+import {
+  SPECIAL_ASSIGNMENT_LABELS,
+  type ActivityAction,
+  type AssignmentType,
 } from '@/lib/constants/assignments';
 import type { DailyPlan } from '@/types/domain';
 
@@ -200,6 +201,133 @@ export async function moveAssignment(
     entityType: 'assignment',
     entityId: id,
     dailyPlanId: planId,
+  });
+  revalidate(planId);
+  return warning ? { ok: true, warning } : { ok: true };
+}
+
+// --- Move onto a support / special assignment -------------------------------
+
+const DUPLICATE_ACTIVE_MESSAGE =
+  'That associate is already committed in this plan. Use Switch or Move instead.';
+
+/**
+ * Move a live associate off a regular assignment onto a support/special
+ * assignment (Middle Mile, ICQA Support, IB/OB Support). The regular assignment
+ * row is removed and a `special_assignments` row is created, keeping the
+ * associate in exactly one place. Overtime and Training aren't valid live move
+ * destinations (schedule/pay state and planned training, respectively) — the
+ * schema restricts `targetType` accordingly.
+ */
+export async function moveAssignmentToSupport(
+  assignmentId: string,
+  planId: string,
+  input: z.input<typeof supportMoveSchema>,
+): Promise<WarnResult> {
+  const profile = await requireRole(PLANNER_ROLES);
+  const plan = await requirePublished(planId);
+  if ('ok' in plan) return plan;
+  const parsed = supportMoveSchema.safeParse(input);
+  if (!parsed.success) return fail('Please check the form and try again.');
+
+  const supabase = await createClient();
+  const current = await getAssignment(supabase, assignmentId);
+  if (!current) return fail('Assignment not found.');
+
+  const equipmentId = nullable(parsed.data.equipmentId);
+  const warning = await certWarning(supabase, current.associateId, equipmentId);
+
+  const { error: insError } = await supabase
+    .from('special_assignments')
+    .insert({
+      daily_plan_id: planId,
+      associate_id: current.associateId,
+      type: parsed.data.targetType,
+      equipment_id: equipmentId,
+      notes: parsed.data.notes || null,
+    });
+  if (insError) {
+    if ((insError as { code?: string }).code === '23505') {
+      return fail(DUPLICATE_ACTIVE_MESSAGE);
+    }
+    return dbFail();
+  }
+
+  const { error: delError } = await supabase
+    .from('assignments')
+    .delete()
+    .eq('id', assignmentId);
+  if (delError) return dbFail();
+
+  await logActivity(supabase, {
+    planId,
+    associateId: current.associateId,
+    action: 'moved',
+    from: current,
+    to: { taskTypeId: null, equipmentId, dockDoorId: null },
+    reason: `Moved to ${SPECIAL_ASSIGNMENT_LABELS[parsed.data.targetType]}`,
+    changedBy: profile.id,
+  });
+  await logAudit({
+    actionType: 'moved_associate',
+    entityType: 'assignment',
+    entityId: assignmentId,
+    dailyPlanId: planId,
+  });
+  revalidate(planId);
+  return warning ? { ok: true, warning } : { ok: true };
+}
+
+/**
+ * Re-type an existing support/special assignment (e.g. Middle Mile → IB Support)
+ * without returning the associate to the pool. Overtime/Training are excluded by
+ * the schema. To move a special onto a regular task instead, assign them from
+ * the pool — `addLiveAssignment` clears the special automatically.
+ */
+export async function changeSpecialType(
+  specialId: string,
+  planId: string,
+  input: z.input<typeof supportMoveSchema>,
+): Promise<WarnResult> {
+  const profile = await requireRole(PLANNER_ROLES);
+  const plan = await requirePublished(planId);
+  if ('ok' in plan) return plan;
+  const parsed = supportMoveSchema.safeParse(input);
+  if (!parsed.success) return fail('Please check the form and try again.');
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('special_assignments')
+    .select('associate_id')
+    .eq('id', specialId)
+    .eq('daily_plan_id', planId)
+    .maybeSingle();
+  const special = data as { associate_id: string } | null;
+  if (!special) return fail('Special assignment not found.');
+
+  const equipmentId = nullable(parsed.data.equipmentId);
+  const warning = await certWarning(
+    supabase,
+    special.associate_id,
+    equipmentId,
+  );
+
+  const { error } = await supabase
+    .from('special_assignments')
+    .update({
+      type: parsed.data.targetType,
+      equipment_id: equipmentId,
+      notes: parsed.data.notes || null,
+    })
+    .eq('id', specialId);
+  if (error) return dbFail();
+
+  await logActivity(supabase, {
+    planId,
+    associateId: special.associate_id,
+    action: 'moved',
+    reason: `Moved to ${SPECIAL_ASSIGNMENT_LABELS[parsed.data.targetType]}`,
+    changedBy: profile.id,
   });
   revalidate(planId);
   return warning ? { ok: true, warning } : { ok: true };

@@ -3,8 +3,10 @@ import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import {
   listAssociates,
+  listDepartments,
   listDockDoors,
   listEquipment,
+  listShiftKeys,
   listTasks,
   listCertificationsByAssociate,
 } from '@/features/config/queries';
@@ -16,9 +18,11 @@ import type {
   Associate,
   CallOff,
   DailyPlan,
+  Department,
   DockDoor,
   EquipmentType,
   PlanTemplate,
+  ShiftKey,
   SpecialAssignment,
   TaskType,
 } from '@/types/domain';
@@ -54,10 +58,20 @@ function fail(entity: string, message: string): never {
 
 export interface PlanInputs {
   associates: Associate[];
+  /**
+   * Every active associate in the facility (all departments + keys). Drives the
+   * cross-department support / overtime pickers and resolves names for anyone
+   * assigned from another dept or key. The narrow `associates` above still backs
+   * the eligible pool, Not-Available list, and auto-fill.
+   */
+  allAssociates: Associate[];
   tasks: TaskType[];
   equipment: EquipmentType[];
   dockDoors: DockDoor[];
   templates: PlanTemplate[];
+  /** Facility shift keys + departments, for support-picker key/dept metadata. */
+  shiftKeys: ShiftKey[];
+  departments: Department[];
   /** associateId → certified equipmentIds. */
   certificationsByAssociate: Record<string, string[]>;
 }
@@ -72,15 +86,25 @@ export async function getPlanInputs(
   departmentId: string,
   shiftKeyId: string,
 ): Promise<PlanInputs> {
-  const [associates, tasks, equipment, dockDoors, templates, certs] =
-    await Promise.all([
-      listAssociates(),
-      listTasks(),
-      listEquipment(),
-      listDockDoors(),
-      listTemplates(),
-      listCertificationsByAssociate(),
-    ]);
+  const [
+    associates,
+    tasks,
+    equipment,
+    dockDoors,
+    templates,
+    certs,
+    shiftKeys,
+    departments,
+  ] = await Promise.all([
+    listAssociates(),
+    listTasks(),
+    listEquipment(),
+    listDockDoors(),
+    listTemplates(),
+    listCertificationsByAssociate(),
+    listShiftKeys(),
+    listDepartments(),
+  ]);
 
   return {
     associates: associates.filter(
@@ -89,6 +113,7 @@ export async function getPlanInputs(
         a.departmentId === departmentId &&
         a.defaultKeyId === shiftKeyId,
     ),
+    allAssociates: associates.filter((a) => a.active),
     tasks: tasks.filter((t) => t.departmentId === departmentId),
     equipment,
     dockDoors,
@@ -98,6 +123,8 @@ export async function getPlanInputs(
         t.departmentId === departmentId &&
         t.shiftKeyId === shiftKeyId,
     ),
+    shiftKeys,
+    departments,
     certificationsByAssociate: certs,
   };
 }

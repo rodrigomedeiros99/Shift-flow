@@ -512,6 +512,29 @@ export async function saveActiveDoors(
   return ok;
 }
 
+/**
+ * Whether `associateId` already holds a special assignment in this plan — an
+ * associate can only be in one place, so this backs the duplicate guard (and the
+ * 0019 partial unique index) for support/overtime/etc.
+ */
+async function hasSpecialAssignment(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  planId: string,
+  associateId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('special_assignments')
+    .select('id')
+    .eq('daily_plan_id', planId)
+    .eq('associate_id', associateId)
+    .limit(1)
+    .maybeSingle();
+  return data !== null;
+}
+
+const DUPLICATE_SPECIAL_MESSAGE =
+  'That associate is already committed in this plan. Remove their current assignment first.';
+
 async function insertSpecial(
   planId: string,
   type: SpecialAssignmentType,
@@ -528,12 +551,32 @@ async function insertSpecial(
   if (!guard.ok) return guard;
 
   const supabase = await createClient();
+
+  // One active commitment per associate per plan (mirrors the 0019 index). Check
+  // both the trainer/primary and any paired new hire.
+  const ids = [row.associate_id, row.related_associate_id].filter(
+    (id): id is string => Boolean(id),
+  );
+  for (const id of ids) {
+    if (
+      (await hasActiveAssignment(supabase, planId, id)) ||
+      (await hasSpecialAssignment(supabase, planId, id))
+    ) {
+      return fail(DUPLICATE_SPECIAL_MESSAGE);
+    }
+  }
+
   const { error } = await supabase.from('special_assignments').insert({
     daily_plan_id: planId,
     type,
     ...row,
   });
-  if (error) return dbFail();
+  if (error) {
+    if ((error as { code?: string }).code === '23505') {
+      return fail(DUPLICATE_SPECIAL_MESSAGE);
+    }
+    return dbFail();
+  }
   revalidatePath(`/create-plan/${planId}`);
   return ok;
 }
@@ -556,7 +599,7 @@ export async function addSpecialAssignment(
   planId: string,
   type: Extract<
     SpecialAssignmentType,
-    'middle_mile' | 'icqa_support' | 'support_outbound'
+    'middle_mile' | 'icqa_support' | 'support_outbound' | 'ib_support'
   >,
   input: z.input<typeof specialAssignmentSchema>,
 ): Promise<ActionResult> {
