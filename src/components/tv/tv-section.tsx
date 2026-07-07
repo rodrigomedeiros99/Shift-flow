@@ -207,15 +207,15 @@ function TaskCard({ panel, index }: { panel: Panel; index: number }) {
                 {p.name}
               </span>
               <span className="flex shrink-0 items-center gap-1.5">
+                {p.source ? (
+                  <Badge className="border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/20 dark:text-amber-200">
+                    {p.source}
+                  </Badge>
+                ) : null}
                 {p.door ? <Badge>{`D${p.door}`}</Badge> : null}
                 {p.equip ? (
                   <Badge className={getEquipmentBadgeClass(p.equip)}>
                     {p.equip}
-                  </Badge>
-                ) : null}
-                {p.source ? (
-                  <Badge className="border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/20 dark:text-amber-200">
-                    {p.source}
                   </Badge>
                 ) : null}
               </span>
@@ -254,7 +254,7 @@ export function TvSection({ view }: { view: TvPlanView }) {
       {panels.length === 0 ? (
         <p className="text-foreground-muted text-xl">No assignments yet.</p>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] items-start gap-3.5">
+        <div className="grid grid-cols-1 items-start gap-3.5 sm:grid-cols-[repeat(auto-fill,minmax(230px,1fr))]">
           {panels.map((p, i) => (
             <TaskCard key={p.key} panel={p} index={i} />
           ))}

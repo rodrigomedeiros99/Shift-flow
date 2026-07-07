@@ -121,6 +121,8 @@ export function LiveWorkspace({
         assignments={assignments}
         associates={inputs.associates}
         allAssociates={inputs.allAssociates}
+        shiftKeys={inputs.shiftKeys}
+        planDepartmentId={plan.departmentId}
         tasks={inputs.tasks}
         equipment={inputs.equipment}
         dockDoors={inputs.dockDoors}

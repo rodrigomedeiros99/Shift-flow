@@ -49,6 +49,7 @@ import type {
   Department,
   DockDoor,
   EquipmentType,
+  ShiftKey,
   SpecialAssignment,
   TaskType,
 } from '@/types/domain';
@@ -65,8 +66,15 @@ interface LiveBoardProps {
   planId: string;
   assignments: Assignment[];
   associates: Associate[];
-  /** All active facility associates — resolves cross-department support names. */
+  /**
+   * All active facility associates — resolves cross-department support names and
+   * backs the manual Assign picker (which spans every department + key).
+   */
   allAssociates?: Associate[];
+  /** Facility shift keys, for the Assign picker's key filter + metadata. */
+  shiftKeys?: ShiftKey[];
+  /** This plan's department, to flag borrowed (cross-department) associates. */
+  planDepartmentId?: string;
   tasks: TaskType[];
   equipment: EquipmentType[];
   dockDoors: DockDoor[];
@@ -91,6 +99,8 @@ export function LiveBoard({
   assignments,
   associates,
   allAssociates,
+  shiftKeys,
+  planDepartmentId,
   tasks,
   equipment,
   dockDoors,
@@ -134,6 +144,25 @@ export function LiveBoard({
     () => new Map(departments.map((d) => [d.id, d.name])),
     [departments],
   );
+  const keyName = useMemo(
+    () => new Map((shiftKeys ?? []).map((k) => [k.id, k.name])),
+    [shiftKeys],
+  );
+  // Every active associate, by id — the manual Assign picker spans all
+  // departments/keys, and cross-dept people aren't in this plan's roster.
+  const everyAssociate = useMemo(
+    () => allAssociates ?? associates,
+    [allAssociates, associates],
+  );
+  const assocById = useMemo(
+    () => new Map(everyAssociate.map((a) => [a.id, a])),
+    [everyAssociate],
+  );
+  // Active assignment per associate — for the "Already Assigned to X" hint.
+  const assignmentByAssociate = useMemo(
+    () => new Map(active.map((a) => [a.associateId, a])),
+    [active],
+  );
 
   // Associates committed to live work or a special assignment (on the floor).
   const occupied = useMemo(() => {
@@ -170,10 +199,50 @@ export function LiveBoard({
       ),
     [associates, callOffById, occupied],
   );
-  const notAvailableIds = useMemo(
-    () => new Set(notAvailable.map((a) => a.id)),
-    [notAvailable],
+
+  // --- Manual Assign picker: all active associates, across every dept + key ---
+  const [aDeptFilter, setADeptFilter] = useState('');
+  const [aKeyFilter, setAKeyFilter] = useState('');
+  const assignCandidates = useMemo(
+    () =>
+      sortAssociates(
+        everyAssociate.filter(
+          (a) =>
+            (!aDeptFilter || a.departmentId === aDeptFilter) &&
+            (!aKeyFilter || a.defaultKeyId === aKeyFilter),
+        ),
+      ),
+    [everyAssociate, aDeptFilter, aKeyFilter],
   );
+  const assignDepts = useMemo(() => {
+    const ids = new Set(everyAssociate.map((a) => a.departmentId));
+    return departments.filter((d) => ids.has(d.id));
+  }, [everyAssociate, departments]);
+  const assignKeys = useMemo(() => {
+    const ids = new Set(everyAssociate.map((a) => a.defaultKeyId));
+    return (shiftKeys ?? []).filter((k) => ids.has(k.id));
+  }, [everyAssociate, shiftKeys]);
+  /** Where an associate is already committed, for the disabled "Already Assigned" hint. */
+  const assignedLabel = (id: string): string => {
+    const a = assignmentByAssociate.get(id);
+    if (a) {
+      if (a.taskTypeId) return taskName.get(a.taskTypeId) ?? 'a task';
+      if (a.dockDoorId) return `Door ${doorName.get(a.dockDoorId) ?? '—'}`;
+      return 'a task';
+    }
+    if (
+      specials.some((s) => s.associateId === id || s.relatedAssociateId === id)
+    )
+      return 'a special assignment';
+    return '';
+  };
+  const homeMetaOf = (id: string): string => {
+    const a = assocById.get(id);
+    if (!a) return '';
+    return [keyName.get(a.defaultKeyId), deptName.get(a.departmentId)]
+      .filter(Boolean)
+      .join(' — ');
+  };
 
   const groups = useMemo(() => {
     const map = new Map<string, Assignment[]>();
@@ -340,6 +409,8 @@ export function LiveBoard({
     setATask('');
     setAEquip('');
     setADoor('');
+    setADeptFilter('');
+    setAKeyFilter('');
     setAssigning(true);
   }
   async function doAssign() {
@@ -365,7 +436,7 @@ export function LiveBoard({
   function submitAssign() {
     if (!aAssoc) return;
     // Assigning a Not Available associate (late arrival) needs confirmation.
-    if (notAvailableIds.has(aAssoc)) {
+    if (callOffById.has(aAssoc)) {
       setConfirmNotAvail(true);
       return;
     }
@@ -457,6 +528,15 @@ export function LiveBoard({
                             ? ` · Door ${doorName.get(a.dockDoorId) ?? '—'}`
                             : ''}
                         </p>
+                        {/* Borrowed from another department — show their home. */}
+                        {planDepartmentId &&
+                        assocById.get(a.associateId) &&
+                        assocById.get(a.associateId)!.departmentId !==
+                          planDepartmentId ? (
+                          <p className="text-foreground-subtle mt-0.5 text-xs">
+                            Home: {homeMetaOf(a.associateId)}
+                          </p>
+                        ) : null}
                       </div>
                       <StatusBadge status={a.status} />
                     </div>
@@ -873,6 +953,38 @@ export function LiveBoard({
         }
       >
         <div className="space-y-4">
+          {/* Manual assign spans every department + key (Inbound/ICQA helping
+              Outbound, cross-key overtime, late arrivals). */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Department" htmlFor="as-dept">
+              <Select
+                id="as-dept"
+                value={aDeptFilter}
+                onChange={(e) => setADeptFilter(e.target.value)}
+              >
+                <option value="">All departments</option>
+                {assignDepts.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Key" htmlFor="as-key">
+              <Select
+                id="as-key"
+                value={aKeyFilter}
+                onChange={(e) => setAKeyFilter(e.target.value)}
+              >
+                <option value="">All keys</option>
+                {assignKeys.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
           <Field label="Associate" htmlFor="as-assoc">
             <Select
               id="as-assoc"
@@ -880,38 +992,25 @@ export function LiveBoard({
               onChange={(e) => setAAssoc(e.target.value)}
             >
               <option value="">Select an associate</option>
-              {pool.length > 0 ? (
-                <optgroup label="Available">
-                  {pool.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {fullName(a)}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-              {notAvailable.length > 0 ? (
-                <optgroup label="Marked Not Available">
-                  {notAvailable.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {fullName(a)} — Not Available
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-              {/* Someone being moved off a special assignment isn't in either
-                  list above; show them so the picker reflects the selection. */}
-              {aAssoc &&
-              !pool.some((p) => p.id === aAssoc) &&
-              !notAvailable.some((n) => n.id === aAssoc) ? (
-                <optgroup label="On special assignment">
-                  <option value={aAssoc}>
-                    {nameOf.get(aAssoc) ?? '—'} — Special
+              {assignCandidates.map((a) => {
+                const committed = occupied.has(a.id);
+                const meta = homeMetaOf(a.id);
+                const suffix = committed
+                  ? ` — Already Assigned to ${assignedLabel(a.id)}`
+                  : callOffById.has(a.id)
+                    ? ' — Not Available'
+                    : '';
+                return (
+                  <option key={a.id} value={a.id} disabled={committed}>
+                    {fullName(a)}
+                    {meta ? ` — ${meta}` : ''}
+                    {suffix}
                   </option>
-                </optgroup>
-              ) : null}
+                );
+              })}
             </Select>
           </Field>
-          {notAvailableIds.has(aAssoc) ? (
+          {callOffById.has(aAssoc) ? (
             <p className="text-warning flex items-center gap-1.5 text-xs">
               <UserX className="h-3.5 w-3.5" aria-hidden="true" />
               This associate was marked Not Available for this plan. You&apos;ll

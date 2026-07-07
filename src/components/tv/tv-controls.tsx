@@ -69,8 +69,8 @@ export function TvControls({
   }
 
   return (
-    <div className="tv-glass flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3">
-      <div className="flex flex-wrap items-center gap-4">
+    <div className="tv-glass flex flex-col gap-3 rounded-2xl px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4 sm:py-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div role="group" aria-label="TV view" className="inline-flex gap-1.5">
           {VIEWS.map((v) => (
             <button
@@ -78,7 +78,7 @@ export function TvControls({
               type="button"
               onClick={() => setParam('view', v.value)}
               className={cn(
-                'rounded-lg px-4 py-2 text-base font-semibold transition-colors',
+                'rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors sm:px-4 sm:py-2 sm:text-base',
                 v.value === view
                   ? 'bg-gradient-to-br from-[#f97316] to-[#fb923c] text-white shadow-sm'
                   : 'text-foreground-muted hover:bg-surface hover:text-foreground border-border border',
@@ -91,27 +91,29 @@ export function TvControls({
         <LiveIndicator total={total} />
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-end gap-2 sm:gap-3">
         <LiveClock />
         <button
           type="button"
           onClick={() => setParam('present', '1')}
-          className="border-border text-foreground-muted hover:bg-surface hover:text-foreground inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-base font-medium"
+          className="border-border text-foreground-muted hover:bg-surface hover:text-foreground inline-flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm font-medium sm:px-4 sm:py-2.5 sm:text-base"
         >
           <Monitor className="h-5 w-5" aria-hidden="true" />
-          Present
+          <span className="hidden sm:inline">Present</span>
         </button>
         <button
           type="button"
           onClick={toggleFullscreen}
-          className="border-border text-foreground-muted hover:bg-surface hover:text-foreground inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-base font-medium"
+          className="border-border text-foreground-muted hover:bg-surface hover:text-foreground inline-flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm font-medium sm:px-4 sm:py-2.5 sm:text-base"
         >
           {isFullscreen ? (
             <Minimize className="h-5 w-5" aria-hidden="true" />
           ) : (
             <Maximize className="h-5 w-5" aria-hidden="true" />
           )}
-          {isFullscreen ? 'Exit' : 'Fullscreen'}
+          <span className="hidden sm:inline">
+            {isFullscreen ? 'Exit' : 'Fullscreen'}
+          </span>
         </button>
       </div>
     </div>
