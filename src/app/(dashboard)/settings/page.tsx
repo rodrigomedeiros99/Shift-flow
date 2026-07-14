@@ -7,6 +7,7 @@ import {
   Building2,
   KeyRound,
   ScrollText,
+  Truck,
   ChevronRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -56,6 +57,12 @@ const CONFIG_SECTIONS: ReadonlyArray<{
     description: 'Shift key schedules and operating days.',
     href: '/settings/shift-keys',
     icon: KeyRound,
+  },
+  {
+    title: 'Load Priority Zones',
+    description: 'Door-number ranges that map to each loading zone.',
+    href: '/settings/load-priority',
+    icon: Truck,
   },
   {
     title: 'Audit Log',

@@ -18,6 +18,19 @@ export const ROUTE_ACCESS: Record<string, readonly UserRole[]> = {
   '/create-plan': ['admin', 'supervisor', 'inbound_leader', 'outbound_leader'],
   '/tv': ['admin', 'supervisor', 'inbound_leader', 'outbound_leader', 'viewer'],
   '/live-plan': ['admin', 'supervisor', 'inbound_leader', 'outbound_leader'],
+  '/load-priority': [
+    'admin',
+    'supervisor',
+    'inbound_leader',
+    'outbound_leader',
+  ],
+  '/load-priority-tv': [
+    'admin',
+    'supervisor',
+    'inbound_leader',
+    'outbound_leader',
+    'viewer',
+  ],
   '/history': ['admin', 'supervisor', 'inbound_leader', 'outbound_leader'],
   '/notifications': [
     'admin',

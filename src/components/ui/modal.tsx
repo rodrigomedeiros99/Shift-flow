@@ -33,22 +33,29 @@ export function Modal({
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Grab focus + lock body scroll only when the dialog opens/closes. Keeping
+  // this off `onClose` is critical: callers often pass an inline arrow (a new
+  // reference every render), and with controlled inputs each keystroke
+  // re-renders — refocusing the panel here would steal focus out of the input.
   useEffect(() => {
     if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    panelRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
 
+  // Escape-to-close listener; may re-bind per render (onClose identity) but that
+  // only swaps a keydown handler — it never touches focus.
+  useEffect(() => {
+    if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKeyDown);
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    panelRef.current?.focus();
-
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
 
   if (!open || typeof document === 'undefined') {

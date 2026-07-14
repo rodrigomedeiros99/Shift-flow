@@ -13,6 +13,7 @@ const ACTION_LABELS: Record<string, string> = {
   moved_associate: 'Moved associate',
   switched_assignment: 'Switched assignment',
   delete_draft: 'Deleted draft',
+  delete_load_priority_board: 'Deleted Load Priority board',
 };
 
 const stamp = (iso: string) =>

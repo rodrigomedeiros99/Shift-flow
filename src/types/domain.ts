@@ -292,3 +292,83 @@ export interface Notification {
   readAt: ISODateTime | null;
   createdAt: ISODateTime;
 }
+
+// --- Load Priority Board -----------------------------------------------------
+
+/** Lifecycle of a daily Load Priority board. */
+export type LoadPriorityStatus = 'draft' | 'published' | 'closed';
+
+/** Open/closed state of a single door entry. */
+export type LoadPriorityDoorStatus = 'open' | 'closed';
+
+/** A configurable zone range: Zone N covers door numbers doorLow..doorHigh. */
+export interface LoadPriorityZone {
+  id: UUID;
+  facilityId: UUID;
+  zone: number;
+  doorLow: number;
+  doorHigh: number;
+  active: boolean;
+  sortOrder: number;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+/**
+ * One recurring row of the Weekly Master Schedule: a door's default lane/carrier,
+ * close time, and zone for a given weekday (0 = Sunday … 6 = Saturday). Active
+ * rows are copied (snapshotted) into a daily board.
+ */
+export interface LoadPriorityWeeklySchedule {
+  id: UUID;
+  facilityId: UUID;
+  weekday: number;
+  doorNumber: string;
+  laneNumber: string | null;
+  carrierLabel: string | null;
+  /** `HH:MM` (24h) local close time. */
+  closeTime: string;
+  zone: number;
+  active: boolean;
+  notes: string | null;
+  sortOrder: number;
+  createdBy: UUID | null;
+  updatedBy: UUID | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+/** A daily Load Priority board for a date + shift key. */
+export interface LoadPriorityBoard {
+  id: UUID;
+  facilityId: UUID;
+  shiftKeyId: UUID;
+  boardDate: ISODate;
+  status: LoadPriorityStatus;
+  createdBy: UUID | null;
+  publishedAt: ISODateTime | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+/** One door priority on a board — lane/carrier/zone/close are snapshots. */
+export interface LoadPriorityEntry {
+  id: UUID;
+  boardId: UUID;
+  facilityId: UUID;
+  doorNumber: string;
+  zone: number;
+  laneNumberSnapshot: string | null;
+  carrierLabelSnapshot: string | null;
+  /** `HH:MM` (24h) close time for today, or null if none. */
+  closeTime: string | null;
+  status: LoadPriorityDoorStatus;
+  closedAt: ISODateTime | null;
+  closedBy: UUID | null;
+  notes: string | null;
+  sortOrder: number;
+  /** Weekly row this entry was copied from, or null for one-off/imported doors. */
+  sourceWeeklyScheduleId: UUID | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}

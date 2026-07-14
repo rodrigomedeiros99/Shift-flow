@@ -9,6 +9,7 @@ import {
   Forklift,
   DoorClosed,
   MonitorPlay,
+  Truck,
   Settings,
 } from 'lucide-react';
 import type { UserRole } from '@/lib/constants/roles';
@@ -50,6 +51,12 @@ export const PRIMARY_NAV: readonly NavItem[] = [
   },
   { label: 'Live Plan', href: '/live-plan', icon: Activity, enabled: true },
   { label: 'TV Mode', href: '/tv', icon: MonitorPlay, enabled: true },
+  {
+    label: 'Load Priority',
+    href: '/load-priority',
+    icon: Truck,
+    enabled: true,
+  },
   { label: 'History', href: '/history', icon: History, enabled: true },
   { label: 'Associates', href: '/associates', icon: Users, enabled: true },
   { label: 'Tasks', href: '/tasks', icon: ClipboardList, enabled: true },

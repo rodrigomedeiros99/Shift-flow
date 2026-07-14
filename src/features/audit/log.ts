@@ -16,7 +16,8 @@ export type AuditAction =
   | 'close_shift'
   | 'moved_associate'
   | 'switched_assignment'
-  | 'delete_draft';
+  | 'delete_draft'
+  | 'delete_load_priority_board';
 
 interface LogAuditInput {
   actionType: AuditAction;

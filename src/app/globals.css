@@ -173,6 +173,46 @@
   background: rgba(0, 0, 0, 0.25);
 }
 
+/* Load Priority — urgency accent (left border) on a glass door card. Plain CSS
+   so it always renders. Dark mode needs its own rule because `.dark .tv-card`
+   (higher specificity) otherwise repaints the left border faint white. */
+.lp-lvl-critical {
+  border-left: 5px solid #dc2626;
+}
+.lp-lvl-soon {
+  border-left: 5px solid #ea580c;
+}
+.lp-lvl-later {
+  border-left: 5px solid #2563eb;
+}
+.lp-lvl-closed {
+  border-left: 5px solid #16a34a;
+}
+.dark .lp-lvl-critical {
+  border-left-color: #f87171;
+}
+.dark .lp-lvl-soon {
+  border-left-color: #fb923c;
+}
+.dark .lp-lvl-later {
+  border-left-color: #60a5fa;
+}
+.dark .lp-lvl-closed {
+  border-left-color: #4ade80;
+}
+
+/* CLOSED badge — plain CSS so the label reads clearly in both themes. */
+.lp-badge-closed {
+  background: rgba(22, 163, 74, 0.15);
+  border-color: rgba(22, 163, 74, 0.55);
+  color: #14532d;
+}
+.dark .lp-badge-closed {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #bbf7d0;
+}
+
 /* Equipment "role" badge colors — mirror docs/tv-v1-light.jsx, theme-aware.
    Plain CSS (not runtime Tailwind classes) so it ALWAYS renders in both themes;
    only bg/border-color/text-color are set — width, radius, padding, and font

@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -11,12 +12,12 @@ import {
   CardContent,
   Checkbox,
   ConfirmDialog,
+  EmptyState,
   Input,
   Modal,
   Select,
   useToast,
 } from '@/components/ui';
-import { ConfigList } from './config-list';
 import { Field } from './field';
 import { RowActions, StatusCell } from './row-actions';
 import {
@@ -29,8 +30,6 @@ import {
   setAssociateActive,
   updateAssociate,
 } from '@/features/config/actions';
-import { Field as FilterField } from './field';
-import { DEPARTMENT_KIND_LABELS } from '@/lib/constants/departments';
 import type {
   Associate,
   Department,
@@ -46,6 +45,42 @@ interface AssociateManagerProps {
   certifications: Record<string, string[]>;
 }
 
+type StatusFilter = 'all' | 'active' | 'inactive';
+type SortValue = 'name-asc' | 'name-desc' | 'dept' | 'key';
+
+const SORT_OPTIONS: { value: SortValue; label: string }[] = [
+  { value: 'name-asc', label: 'Name (A–Z)' },
+  { value: 'name-desc', label: 'Name (Z–A)' },
+  { value: 'dept', label: 'Department' },
+  { value: 'key', label: 'Key' },
+];
+
+const PAGE_SIZES = [25, 50, 100] as const;
+const STORAGE_KEY = 'shiftflow:associates:filters:v1';
+
+/**
+ * Departments omitted from the Quick Statistics cards (matched by name,
+ * case-insensitive). They still count toward Total/Inactive and remain
+ * selectable in the Department filter.
+ */
+const STAT_HIDDEN_DEPARTMENTS = ['support', 'transportation'];
+
+const fullName = (a: Associate) => `${a.firstName} ${a.lastName}`;
+const sortKey = (a: Associate) => `${a.lastName} ${a.firstName}`;
+const byName = (a: Associate, b: Associate) =>
+  sortKey(a).localeCompare(sortKey(b), undefined, { sensitivity: 'base' });
+
+/** Persisted filter/sort state (per session, per the "remember filters" ask). */
+interface Persisted {
+  query: string;
+  dept: string;
+  key: string;
+  status: StatusFilter;
+  equip: string;
+  sort: SortValue;
+  pageSize: number;
+}
+
 export function AssociateManager({
   items,
   departments,
@@ -59,53 +94,180 @@ export function AssociateManager({
   const [editing, setEditing] = useState<Associate | null>(null);
   const [toggling, setToggling] = useState<Associate | null>(null);
   const [deleting, setDeleting] = useState<Associate | null>(null);
-  const [kindFilter, setKindFilter] = useState<'all' | 'inbound' | 'outbound'>(
-    'all',
-  );
-  const [statusFilter, setStatusFilter] = useState<
-    'all' | 'active' | 'inactive'
-  >('all');
   const [pending, setPending] = useState(false);
+
+  // --- Toolbar state (search / filters / sort / paging) ---
+  const [query, setQuery] = useState('');
+  const [deptFilter, setDeptFilter] = useState('all');
+  const [keyFilter, setKeyFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [equipFilter, setEquipFilter] = useState('all'); // 'all' | 'none' | id
+  const [sort, setSort] = useState<SortValue>('name-asc');
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [page, setPage] = useState(1);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Restore last session's filters (deferred so it stays SSR-safe and never
+  // sets state synchronously inside the effect).
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      try {
+        const raw = sessionStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const s = JSON.parse(raw) as Partial<Persisted>;
+          const validDept =
+            s.dept && departments.some((d) => d.id === s.dept) ? s.dept : 'all';
+          const validKey =
+            s.key && shiftKeys.some((k) => k.id === s.key) ? s.key : 'all';
+          const validEquip =
+            s.equip === 'none' ||
+            (s.equip && equipment.some((e) => e.id === s.equip))
+              ? s.equip
+              : 'all';
+          setQuery(s.query ?? '');
+          setDeptFilter(validDept);
+          setKeyFilter(validKey);
+          setStatusFilter(s.status ?? 'all');
+          setEquipFilter(validEquip ?? 'all');
+          if (s.sort) setSort(s.sort);
+          if (s.pageSize && PAGE_SIZES.includes(s.pageSize as 25 | 50 | 100))
+            setPageSize(s.pageSize);
+        }
+      } catch {
+        // ignore malformed storage
+      }
+      setHydrated(true);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [departments, shiftKeys, equipment]);
+
+  // Persist on change (writes storage only — no setState).
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      const payload: Persisted = {
+        query,
+        dept: deptFilter,
+        key: keyFilter,
+        status: statusFilter,
+        equip: equipFilter,
+        sort,
+        pageSize,
+      };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // storage unavailable — ignore
+    }
+  }, [
+    hydrated,
+    query,
+    deptFilter,
+    keyFilter,
+    statusFilter,
+    equipFilter,
+    sort,
+    pageSize,
+  ]);
 
   const deptName = useMemo(
     () => new Map(departments.map((d) => [d.id, d.name])),
     [departments],
   );
-  const deptKind = useMemo(
-    () => new Map(departments.map((d) => [d.id, d.kind])),
-    [departments],
-  );
-  // Scope by department kind, then by status. The counter reflects both.
-  const kindItems = useMemo(
-    () =>
-      kindFilter === 'all'
-        ? items
-        : items.filter((i) => deptKind.get(i.departmentId) === kindFilter),
-    [items, kindFilter, deptKind],
-  );
-  const filteredItems = useMemo(
-    () =>
-      statusFilter === 'all'
-        ? kindItems
-        : kindItems.filter((i) => i.active === (statusFilter === 'active')),
-    [kindItems, statusFilter],
-  );
-  const counts = useMemo(() => {
-    const active = kindItems.filter((i) => i.active).length;
-    return {
-      total: kindItems.length,
-      active,
-      inactive: kindItems.length - active,
-    };
-  }, [kindItems]);
-  const scopeLabel =
-    kindFilter === 'all'
-      ? 'All Associates'
-      : `${DEPARTMENT_KIND_LABELS[kindFilter]} Associates`;
   const keyName = useMemo(
     () => new Map(shiftKeys.map((k) => [k.id, k.name])),
     [shiftKeys],
   );
+
+  // Base scope = search + department + key + equipment (NOT status), so the
+  // Active/Inactive stat cards stay meaningful while status is being filtered.
+  const baseItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((i) => {
+      if (deptFilter !== 'all' && i.departmentId !== deptFilter) return false;
+      if (keyFilter !== 'all' && i.defaultKeyId !== keyFilter) return false;
+      if (equipFilter !== 'all') {
+        const certs = certifications[i.id] ?? [];
+        if (
+          equipFilter === 'none'
+            ? certs.length > 0
+            : !certs.includes(equipFilter)
+        )
+          return false;
+      }
+      if (
+        q &&
+        !`${fullName(i)} ${i.employeeId ?? ''}`.toLowerCase().includes(q)
+      )
+        return false;
+      return true;
+    });
+  }, [items, query, deptFilter, keyFilter, equipFilter, certifications]);
+
+  // Table set = base + status filter, then sorted.
+  const sorted = useMemo(() => {
+    const rows = baseItems.filter((i) =>
+      statusFilter === 'all' ? true : i.active === (statusFilter === 'active'),
+    );
+    const cmp: Record<SortValue, (a: Associate, b: Associate) => number> = {
+      'name-asc': byName,
+      'name-desc': (a, b) => byName(b, a),
+      dept: (a, b) =>
+        (deptName.get(a.departmentId) ?? '').localeCompare(
+          deptName.get(b.departmentId) ?? '',
+        ) || byName(a, b),
+      key: (a, b) =>
+        (keyName.get(a.defaultKeyId) ?? '').localeCompare(
+          keyName.get(b.defaultKeyId) ?? '',
+        ) || byName(a, b),
+    };
+    return [...rows].sort(cmp[sort]);
+  }, [baseItems, statusFilter, sort, deptName, keyName]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = sorted.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize,
+  );
+  const rangeFrom = sorted.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeTo = Math.min(safePage * pageSize, sorted.length);
+
+  // Any filter/search/sort change returns to page 1.
+  function onFilter<T>(setter: (v: T) => void) {
+    return (v: T) => {
+      setter(v);
+      setPage(1);
+    };
+  }
+
+  // Stat cards — recompute from the (status-independent) base scope.
+  const activeCount = useMemo(
+    () => baseItems.filter((i) => i.active).length,
+    [baseItems],
+  );
+  const statCards = useMemo(() => {
+    const inactive = baseItems.length - activeCount;
+    if (deptFilter === 'all') {
+      return [
+        { label: 'Total', value: baseItems.length },
+        ...departments
+          .filter(
+            (d) =>
+              !STAT_HIDDEN_DEPARTMENTS.includes(d.name.trim().toLowerCase()),
+          )
+          .map((d) => ({
+            label: d.name,
+            value: baseItems.filter((i) => i.departmentId === d.id).length,
+          })),
+        { label: 'Inactive', value: inactive },
+      ];
+    }
+    return [
+      { label: 'Total', value: baseItems.length },
+      { label: 'Active', value: activeCount },
+      { label: 'Inactive', value: inactive },
+    ];
+  }, [baseItems, activeCount, deptFilter, departments]);
 
   const blank = useMemo<AssociateFormValues>(
     () => ({
@@ -205,13 +367,9 @@ export function AssociateManager({
 
   return (
     <>
-      {/* Counter — reflects the department + status filters (dashboard style). */}
-      <div className="mb-4 grid grid-cols-3 gap-3 sm:max-w-md">
-        {[
-          { label: scopeLabel, value: counts.total },
-          { label: 'Active', value: counts.active },
-          { label: 'Inactive', value: counts.inactive },
-        ].map((stat) => (
+      {/* Quick statistics — reflect the active filters (status-independent). */}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        {statCards.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="px-4 py-3 text-center">
               <p className="text-foreground text-2xl font-semibold tabular-nums">
@@ -225,90 +383,239 @@ export function AssociateManager({
         ))}
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <FilterField label="Department" htmlFor="assoc-kind-filter">
+      {/* Toolbar: search + filters + sort + add */}
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <Field
+          label="Search"
+          htmlFor="assoc-search"
+          className="min-w-56 flex-1"
+        >
+          <div className="relative">
+            <Search
+              className="text-foreground-subtle pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+              aria-hidden="true"
+            />
+            <Input
+              id="assoc-search"
+              value={query}
+              onChange={(e) => onFilter(setQuery)(e.target.value)}
+              placeholder="Search name or employee ID…"
+              className="pl-9"
+            />
+          </div>
+        </Field>
+        <Field label="Department" htmlFor="assoc-dept-filter">
           <Select
-            id="assoc-kind-filter"
-            value={kindFilter}
-            onChange={(e) =>
-              setKindFilter(e.target.value as 'all' | 'inbound' | 'outbound')
-            }
+            id="assoc-dept-filter"
+            value={deptFilter}
+            onChange={(e) => onFilter(setDeptFilter)(e.target.value)}
             className="sm:w-44"
           >
             <option value="all">All departments</option>
-            <option value="inbound">{DEPARTMENT_KIND_LABELS.inbound}</option>
-            <option value="outbound">{DEPARTMENT_KIND_LABELS.outbound}</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
           </Select>
-        </FilterField>
-        <FilterField label="Status" htmlFor="assoc-status-filter">
+        </Field>
+        <Field label="Key" htmlFor="assoc-key-filter">
+          <Select
+            id="assoc-key-filter"
+            value={keyFilter}
+            onChange={(e) => onFilter(setKeyFilter)(e.target.value)}
+            className="sm:w-36"
+          >
+            <option value="all">All keys</option>
+            {shiftKeys.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Status" htmlFor="assoc-status-filter">
           <Select
             id="assoc-status-filter"
             value={statusFilter}
             onChange={(e) =>
-              setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')
+              onFilter(setStatusFilter)(e.target.value as StatusFilter)
             }
-            className="sm:w-40"
+            className="sm:w-36"
           >
             <option value="all">All statuses</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </Select>
-        </FilterField>
+        </Field>
+        <Field label="Certification" htmlFor="assoc-equip-filter">
+          <Select
+            id="assoc-equip-filter"
+            value={equipFilter}
+            onChange={(e) => onFilter(setEquipFilter)(e.target.value)}
+            className="sm:w-40"
+          >
+            <option value="all">All certifications</option>
+            {equipment.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
+            ))}
+            <option value="none">None</option>
+          </Select>
+        </Field>
+        <Field label="Sort by" htmlFor="assoc-sort">
+          <Select
+            id="assoc-sort"
+            value={sort}
+            onChange={(e) => onFilter(setSort)(e.target.value as SortValue)}
+            className="sm:w-40"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Button onClick={openCreate} className="ml-auto gap-2">
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add associate
+        </Button>
       </div>
-      <ConfigList
-        items={filteredItems}
-        hideStatusFilter
-        getKey={(i) => i.id}
-        searchText={(i) => `${i.firstName} ${i.lastName} ${i.employeeId ?? ''}`}
-        isActive={(i) => i.active}
-        searchPlaceholder="Search associates…"
-        addLabel="Add associate"
-        onAdd={openCreate}
-        emptyTitle="No associates yet"
-        emptyDescription="Add associates and assign their department, default key, and certifications."
-        columns={[
-          {
-            header: 'Name',
-            cell: (i) => (
-              <span className="font-medium">
-                {i.lastName}, {i.firstName}
-              </span>
-            ),
-          },
-          {
-            header: 'Employee ID',
-            cell: (i) => i.employeeId ?? '—',
-          },
-          {
-            header: 'Department',
-            cell: (i) => deptName.get(i.departmentId) ?? '—',
-          },
-          {
-            header: 'Default key',
-            cell: (i) => keyName.get(i.defaultKeyId) ?? '—',
-          },
-          {
-            header: 'Certifications',
-            cell: (i) => {
-              const count = certifications[i.id]?.length ?? 0;
-              return count > 0 ? (
-                <Badge tone="info">{count}</Badge>
-              ) : (
-                <span className="text-foreground-subtle">None</span>
-              );
-            },
-          },
-          { header: 'Status', cell: (i) => <StatusCell active={i.active} /> },
-        ]}
-        renderActions={(i) => (
-          <RowActions
-            active={i.active}
-            onEdit={() => openEdit(i)}
-            onToggle={() => setToggling(i)}
-            onDelete={() => setDeleting(i)}
-          />
-        )}
-      />
+
+      {sorted.length === 0 ? (
+        <EmptyState
+          title={items.length === 0 ? 'No associates yet' : 'No matches'}
+          description={
+            items.length === 0
+              ? 'Add associates and assign their department, default key, and certifications.'
+              : 'Try adjusting your search or filters.'
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          <div className="border-border overflow-x-auto rounded-lg border">
+            <table className="w-full min-w-[44rem] text-left text-sm">
+              <thead className="border-border bg-surface-raised/50 border-b">
+                <tr>
+                  {[
+                    'Name',
+                    'Employee ID',
+                    'Department',
+                    'Default key',
+                    'Certifications',
+                    'Status',
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="text-foreground-muted px-4 py-3 font-medium"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                  <th className="text-foreground-muted px-4 py-3 text-right font-medium">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((i) => {
+                  const count = certifications[i.id]?.length ?? 0;
+                  return (
+                    <tr
+                      key={i.id}
+                      className="border-border hover:bg-surface-raised/30 border-b last:border-0"
+                    >
+                      <td className="text-foreground px-4 py-3 font-medium">
+                        {i.lastName}, {i.firstName}
+                      </td>
+                      <td className="text-foreground px-4 py-3">
+                        {i.employeeId ?? '—'}
+                      </td>
+                      <td className="text-foreground px-4 py-3">
+                        {deptName.get(i.departmentId) ?? '—'}
+                      </td>
+                      <td className="text-foreground px-4 py-3">
+                        {keyName.get(i.defaultKeyId) ?? '—'}
+                      </td>
+                      <td className="text-foreground px-4 py-3">
+                        {count > 0 ? (
+                          <Badge tone="info">{count}</Badge>
+                        ) : (
+                          <span className="text-foreground-subtle">None</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusCell active={i.active} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <RowActions
+                            active={i.active}
+                            onEdit={() => openEdit(i)}
+                            onToggle={() => setToggling(i)}
+                            onDelete={() => setDeleting(i)}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-foreground-muted text-sm">
+              Showing {rangeFrom}–{rangeTo} of {sorted.length}
+            </p>
+            <div className="flex items-center gap-3">
+              <label className="text-foreground-muted flex items-center gap-2 text-sm">
+                Per page
+                <Select
+                  value={String(pageSize)}
+                  onChange={(e) =>
+                    onFilter(setPageSize)(Number(e.target.value))
+                  }
+                  aria-label="Rows per page"
+                  className="w-20"
+                >
+                  {PAGE_SIZES.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage(safePage - 1)}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <span className="text-foreground-muted px-2 text-sm tabular-nums">
+                  Page {safePage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage(safePage + 1)}
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Modal
         open={open}
